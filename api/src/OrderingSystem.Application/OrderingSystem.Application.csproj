@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OrderingSystem.Domain\OrderingSystem.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Microsoft.EntityFrameworkCore only - the abstractions, so IAppDbContext
+         can expose DbSet<T>. The SqlServer provider stays in Infrastructure, so
+         this layer knows an ORM exists but never which database is behind it. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Riok.Mapperly" />
+  </ItemGroup>
+
+</Project>

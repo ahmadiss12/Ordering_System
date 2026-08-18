@@ -1,0 +1,31 @@
+<Project>
+
+  <!-- MSBuild only picks up the nearest Directory.Build.props, so the one at
+       api/ must be imported explicitly or its settings would be lost here. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- xUnit v3 test projects are executables, not libraries. -->
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+
+    <!-- Test names read as sentences: Thing_does_x_when_y. CA1707 exists to keep
+         underscores out of public API surface, which a test method is not. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <!-- Every test project gets the same harness, declared once. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

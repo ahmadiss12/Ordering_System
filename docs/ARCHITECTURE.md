@@ -138,7 +138,9 @@ The second reason is specific to this being a sellable product: if it is ever ha
 
 **Decision.** `Application` depends on `IAppDbContext`, which exposes `DbSet<T>` properties and `SaveChangesAsync`. `Infrastructure` implements it with the EF `DbContext`. Reusable query logic lives in `IQueryable<T>` extension methods.
 
-**Why.** `DbContext` is already a Unit of Work and `DbSet<T>` is already a repository — wrapping them adds a layer that abstracts an abstraction. The generic repositories that usually result (`GetAll`, `GetById`) quietly destroy performance, because the only way to express "load this order with its lines, its options, and the customer's name" through them is to fetch entities and filter in memory. The interface gives testability and keeps `Application` free of an EF *package* reference, without giving up `Include`, projection, split queries, or `AsNoTracking`.
+**Why.** `DbContext` is already a Unit of Work and `DbSet<T>` is already a repository — wrapping them adds a layer that abstracts an abstraction. The generic repositories that usually result (`GetAll`, `GetById`) quietly destroy performance, because the only way to express "load this order with its lines, its options, and the customer's name" through them is to fetch entities and filter in memory. The interface gives testability without giving up `Include`, projection, split queries, or `AsNoTracking`.
+
+**Where the package boundary actually falls.** `Application` does reference `Microsoft.EntityFrameworkCore` — it has to, in order for `IAppDbContext` to expose `DbSet<T>`. What it does *not* reference is the provider: `Microsoft.EntityFrameworkCore.SqlServer` lives only in `Infrastructure`. So `Application` knows an ORM exists but never which database is behind it, and `Domain` knows neither.
 
 **Why not repository + unit of work.** The standard justification is swapping the persistence technology. We will not swap SQL Server, and if we did, the repository interfaces would leak EF semantics anyway — lazy loading, change tracking, `IQueryable` — and would not survive the swap.
 
@@ -202,7 +204,7 @@ The second reason is specific to this being a sellable product: if it is ever ha
 
 **Why not full ASP.NET Core Identity.** It brings its own user, role, and claim schema, which fights the `User` / `UserRole` / `RestaurantStaff` model in the spec — particularly staff membership scoped to a restaurant. We take the one genuinely hard piece, the password hasher, and leave the rest.
 
-**Consequence of the login decision.** Self-service password recovery requires transactional email, so `IEmailSender` is in the Application layer from day one, with MailHog in Docker for development. This changes requirement 8.3 — see §5.
+**Consequence of the login decision.** Self-service password recovery requires transactional email, so `IEmailSender` is in the Application layer from day one, with Mailpit in Docker for development. This changes requirement 8.3 — see §5.
 
 ---
 
@@ -315,11 +317,13 @@ projects/
 
 **Why not SQLite in-memory.** Closer, but differs on decimal handling, collation, and concurrency tokens — exactly the areas we most need to trust.
 
+**Assertions: Shouldly, not FluentAssertions.** FluentAssertions 8.0 moved to the Xceed Community License in January 2025 and costs $130 per developer per year for commercial use; version 7.x stays Apache 2.0. Shouldly is free, reads about the same, and carries no licence question — the third library excluded on these grounds, after AutoMapper and MediatR.
+
 ---
 
 ### ADR-19 — Docker Compose for local infrastructure
 
-**Decision.** Compose brings up SQL Server, MailHog (to inspect password-reset email without sending it), and later the API itself. Seed data runs from a CLI flag, not automatically on startup.
+**Decision.** Compose brings up SQL Server, Mailpit (to inspect password-reset email without sending it), and later the API itself. Seed data runs from a CLI flag, not automatically on startup.
 
 **Why.** One command to a working environment, identical across machines, and no local SQL Server install to conflict with anything else. Seeding stays explicit because a seeder that runs on startup eventually runs somewhere it should not.
 

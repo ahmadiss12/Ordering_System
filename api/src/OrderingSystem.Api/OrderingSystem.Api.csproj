@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OrderingSystem.Application\OrderingSystem.Application.csproj" />
+    <!-- Infrastructure is referenced for dependency-injection registration only.
+         Controllers depend on Application types; nothing here should use an
+         Infrastructure type directly outside Program.cs. -->
+    <ProjectReference Include="..\OrderingSystem.Infrastructure\OrderingSystem.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+
+</Project>
