@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OrderingSystem.Api\OrderingSystem.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Drives the real HTTP pipeline in-process, against a real SQL Server
+         started in a container per test run (ADR-18). -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.MsSql" />
+  </ItemGroup>
+
+</Project>

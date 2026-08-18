@@ -1,0 +1,42 @@
+# ---- .NET ----
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+.vs/
+artifacts/
+TestResults/
+*.trx
+*.coverage
+coverage/
+
+# ---- Node / Angular ----
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-error.log*
+.nx/
+
+# ---- React Native / Expo ----
+.expo/
+.expo-shared/
+*.jks
+*.keystore
+
+# ---- Editors ----
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+.DS_Store
+
+# ---- Secrets & local config ----
+.env
+.env.local
+*.local.json
+appsettings.Development.local.json
+
+# ---- Docker volumes ----
+docker/data/

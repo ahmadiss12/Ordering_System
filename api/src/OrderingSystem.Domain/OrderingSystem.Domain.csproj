@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Deliberately has no ProjectReference and no PackageReference.
+       Entities, the order transition table and the money rules live here,
+       and none of them may know about EF Core, ASP.NET or any I/O.
+       If this file ever grows a reference, the dependency rule has been broken. -->
+
+</Project>

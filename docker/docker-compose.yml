@@ -1,0 +1,37 @@
+name: ordering-system
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ordering-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Your_Strong_Passw0rd}"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      # -C trusts the self-signed dev certificate; -N forces the encrypted channel
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -N -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # Catches every outbound email in development so nothing reaches a real inbox.
+  # Web UI on http://localhost:8025, SMTP on 1025.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ordering-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  mssql-data:
