@@ -46,6 +46,17 @@ dotnet_naming_style.underscore_camel.capitalization = camel_case
 # CA1062 null-checks on public args: noisy in an internal API surface
 dotnet_diagnostic.CA1062.severity = none
 
+# CA1716 flags type names that are keywords in another .NET language - it wants
+# Option renamed because VB has "Option Explicit". Nothing consumes this code
+# from VB, and Option is the word the spec, the database and the customer-facing
+# UI all use. Domain vocabulary wins over cross-language courtesy.
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1056 wants URL-ish properties typed as Uri. These are stored as strings
+# because that is what goes in an nvarchar column and what is serialised to the
+# clients; converting to Uri and back at every boundary buys nothing.
+dotnet_diagnostic.CA1056.severity = none
+
 [*.{json,yml,yaml,xml,csproj,props,targets}]
 indent_size = 2
 

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 
@@ -24,6 +25,54 @@ public class DependencyRuleTests
             "Domain holds entities, the order transition table and the money rules. "
             + "It must not know about EF Core, ASP.NET or any I/O (ADR-02). "
             + "Found: " + string.Join(", ", references));
+    }
+
+    [Fact]
+    public void Domain_assembly_references_nothing_outside_the_base_class_library()
+    {
+        // The project-file check above catches a declared reference. This catches one that
+        // arrives some other way - a shared props file, a transitive pin, a stray using.
+        var forbiddenPrefixes = new[]
+        {
+            "Microsoft.EntityFrameworkCore",
+            "Microsoft.AspNetCore",
+            "Microsoft.Extensions",
+            "Newtonsoft",
+            "FluentValidation",
+            "Riok.Mapperly",
+            "Serilog",
+        };
+
+        var offenders = typeof(Orders.Order).Assembly
+            .GetReferencedAssemblies()
+            .Select(a => a.Name ?? string.Empty)
+            .Where(name => forbiddenPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)))
+            .ToArray();
+
+        offenders.ShouldBeEmpty(
+            "Domain must depend on the base class library alone (ADR-02). Found: "
+            + string.Join(", ", offenders));
+    }
+
+    [Fact]
+    public void Every_domain_enum_gives_its_members_explicit_values()
+    {
+        // Enum members are stored as integers. If someone inserts a value in the middle and the
+        // numbers shift, every existing row silently changes meaning. Explicit values make that
+        // impossible, so this asserts nobody ever relies on positional defaults.
+        var implicitlyNumbered = typeof(Enums.OrderStatus).Assembly
+            .GetTypes()
+            .Where(t => t.IsEnum && t.Namespace == "OrderingSystem.Domain.Enums")
+            .Where(t => Enum.GetValues(t).Cast<object>()
+                .Select(v => Convert.ToInt32(v, System.Globalization.CultureInfo.InvariantCulture))
+                .Contains(0))
+            .Select(t => t.Name)
+            .ToArray();
+
+        implicitlyNumbered.ShouldBeEmpty(
+            "A domain enum has a member valued 0, which is what C# assigns when values are left "
+            + "implicit. Number every member explicitly, starting at 1. Found: "
+            + string.Join(", ", implicitlyNumbered));
     }
 
     // Resolved from this file's compile-time location, so it survives being run
