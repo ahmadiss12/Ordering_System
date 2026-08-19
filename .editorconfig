@@ -19,7 +19,7 @@ csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_prefer_braces = true:warning
 csharp_style_expression_bodied_methods = false:suggestion
 csharp_style_prefer_primary_constructors = true:suggestion
-dotnet_style_require_accessibility_modifiers = always:warning
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
 dotnet_style_readonly_field = true:warning
 dotnet_style_prefer_conditional_expression_over_assignment = true:suggestion
 dotnet_sort_system_directives_first = true
@@ -62,3 +62,11 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# EF Core scaffolds migration files and nobody edits them by hand. Without this,
+# every "dotnet ef migrations add" produces code that fails our own style and
+# analyzer rules and breaks the build - file-scoped namespaces, CA1861 on the
+# constant arrays EF emits for seed data and composite keys. Marking the folder
+# as generated tells every Roslyn analyzer to leave it alone.
+[**/Migrations/*.cs]
+generated_code = true
