@@ -1,352 +1,463 @@
 # Domain Model
 
-**Status:** Proposal for review — no code written yet
+**Status:** Implemented — `OrderingSystem.Domain` builds clean and is guarded by three tests
 **Companion to:** `ARCHITECTURE.md`
-**Covers:** 24 entities across five clusters
+**Scale:** 25 entities, 185 scalar columns, 7 enums
 
-Nullable columns are listed under each diagram rather than marked inside it, so the
-diagrams stay readable. Exact types, indexes and constraints land in Step 4.
+Everything below is generated from the entity source, so it cannot drift from the code.
+Navigation properties are omitted from the column tables — they are relationships, and the
+map above shows them.
 
 ---
 
-## 1. Identity, tenancy and auth
+## 1. The whole schema, connected
 
 ```mermaid
-classDiagram
-    class User {
-        Guid Id
-        string Email
-        string PasswordHash
-        string FullName
-        string Phone
-        bool IsActive
-        DateTime CreatedAt
-    }
-    class UserRole {
-        Guid UserId
-        RoleType Role
-    }
-    class RefreshToken {
-        Guid Id
-        Guid UserId
-        Guid FamilyId
-        string TokenHash
-        DateTime ExpiresAt
-        DateTime UsedAt
-        DateTime RevokedAt
-    }
-    class PasswordResetToken {
-        Guid Id
-        Guid UserId
-        string TokenHash
-        DateTime ExpiresAt
-        DateTime UsedAt
-    }
-    class Restaurant {
-        Guid Id
-        string Name
-        string Slug
-        string Description
-        string LogoUrl
-        string Phone
-        bool IsActive
-        bool IsAcceptingOrders
-        decimal CommissionPercent
-        decimal MinOrderUsd
-        int DefaultPrepMinutes
-    }
-    class RestaurantStaff {
-        Guid UserId
-        Guid RestaurantId
-        StaffRoleType StaffRole
-    }
-    class RestaurantHours {
-        Guid Id
-        Guid RestaurantId
-        DayOfWeek DayOfWeek
-        TimeOnly OpenTime
-        TimeOnly CloseTime
-    }
-    class PlatformSetting {
-        string Key
-        string Value
-        DateTime UpdatedAt
-        Guid UpdatedByUserId
-    }
+erDiagram
+    User ||--o{ UserRole : "holds"
+    User ||--o{ RefreshToken : "issued to"
+    User ||--o{ PasswordResetToken : "issued to"
+    User ||--o{ RestaurantStaff : "works at"
+    User ||--o{ Address : "saves"
+    User ||--o{ Cart : "fills"
+    User ||--o{ Order : "places"
+    User |o--o{ OrderEvent : "changed"
+    User ||--o{ ExchangeRate : "set"
 
-    User "1" --> "*" UserRole : holds
-    User "1" --> "*" RefreshToken : issued
-    User "1" --> "*" PasswordResetToken : issued
-    User "1" --> "*" RestaurantStaff : works at
-    Restaurant "1" --> "*" RestaurantStaff : employs
-    Restaurant "1" --> "*" RestaurantHours : opens
+    Restaurant ||--o{ RestaurantStaff : "employs"
+    Restaurant ||--o{ RestaurantHours : "opens during"
+    Restaurant ||--o{ RestaurantZone : "delivers into"
+    Restaurant ||--o{ Category : "organises menu by"
+    Restaurant ||--o{ MenuItem : "sells"
+    Restaurant ||--o{ OptionGroup : "defines"
+    Restaurant ||--o{ Cart : "scopes"
+    Restaurant ||--o{ Order : "receives"
+
+    DeliveryZone ||--o{ RestaurantZone : "priced per"
+    DeliveryZone ||--o{ Address : "locates"
+
+    Category ||--o{ MenuItem : "groups"
+    OptionGroup ||--o{ Option : "offers"
+    MenuItem ||--o{ MenuItemOptionGroup : "attaches"
+    OptionGroup ||--o{ MenuItemOptionGroup : "attached to"
+
+    Cart ||--o{ CartLine : "holds"
+    MenuItem ||--o{ CartLine : "chosen as"
+    CartLine ||--o{ CartLineOption : "selects"
+    Option ||--o{ CartLineOption : "selected as"
+
+    Order ||--o{ OrderLine : "contains"
+    Order ||--o{ OrderEvent : "logs"
+    Order ||--o{ Payment : "settled by"
+    Address |o--o{ Order : "delivered to"
+    OrderLine ||--o{ OrderLineOption : "sold with"
+    MenuItem |o--o{ OrderLine : "reported as"
+    Option |o--o{ OrderLineOption : "reported as"
 ```
 
-**Nullable:** `RefreshToken.UsedAt`, `RefreshToken.RevokedAt`, `PasswordResetToken.UsedAt`,
-`Restaurant.Description`, `Restaurant.LogoUrl`.
+`PlatformSetting` is the one table with no relationship at all — it is a key/value store for the
+default commission and the stale-order threshold, read by the application and edited by an admin.
 
-**Notes.**
-`RefreshToken.FamilyId` groups every token descended from one login. Reuse of a token that
-already has `UsedAt` set revokes the whole family — that is the theft detection in ADR-10.
-`PlatformSetting` is a key/value table holding the default commission and the stale-order
-threshold; it is the home those values currently lack.
+### How to read it
+
+Four things explain most of the shape:
+
+**`Restaurant` is the tenant.** Trace outward from it and you find nearly every menu, cart and
+order row. That fan-out is exactly the surface the query filters in ADR-07 protect: every one of
+those tables carries `RestaurantId`, and a staff token that names a different restaurant must get
+403 on all of them.
+
+**The catalogue and the order touch only through dotted, optional links.** `MenuItem |o--o{
+OrderLine` and `Option |o--o{ OrderLineOption` are nullable on purpose. An order line carries its
+own copy of the name and price; the link back to the live item exists so reporting can ask "how
+many of this dish did we sell", and for nothing else. Delete the item and the order still reads
+correctly.
+
+**Cart and Order look alike but behave oppositely.** `CartLine` points at a live `MenuItem` and
+stores no price, so the basket always reflects today's menu. `OrderLine` stores name and price and
+only optionally points anywhere, so it always reflects the day it was sold.
+
+**`User` reaches into three unrelated corners.** It is the customer on an order, the actor on an
+order event, and the admin who set an exchange rate. One account table, three different jobs —
+which is why roles are a separate additive table rather than a column.
 
 ---
 
-## 2. Geography and addresses
+## 2. Every column
 
-```mermaid
-classDiagram
-    class DeliveryZone {
-        Guid Id
-        string Name
-        bool IsActive
-    }
-    class RestaurantZone {
-        Guid RestaurantId
-        Guid ZoneId
-        decimal DeliveryFeeUsd
-        int EstimatedMinutes
-        bool IsActive
-    }
-    class Address {
-        Guid Id
-        Guid UserId
-        string Label
-        Guid ZoneId
-        string Line1
-        string Building
-        string Floor
-        string Landmark
-        decimal Lat
-        decimal Lng
-        bool IsDefault
-    }
-    class Restaurant
-    class User
+### Identity and auth
 
-    Restaurant "1" --> "*" RestaurantZone : delivers to
-    DeliveryZone "1" --> "*" RestaurantZone : served by
-    DeliveryZone "1" --> "*" Address : contains
-    User "1" --> "*" Address : saves
-```
+#### `PasswordResetToken`
 
-**Nullable:** `Address.Building`, `Address.Floor`, `Address.Landmark`, `Address.Lat`, `Address.Lng`.
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `UserId` | Guid | — |  |
+| `TokenHash` | string | — |  |
+| `CreatedAt` | DateTimeOffset | — |  |
+| `ExpiresAt` | DateTimeOffset | — |  |
+| `UsedAt` | DateTimeOffset | yes |  |
 
-**Notes.**
-`DeliveryZone` is platform-level and shared. `RestaurantZone` is where fee and coverage live,
-so two restaurants can charge different fees into the same zone. Lebanon has no reliable street
-addressing, so `Landmark` carries real weight and coordinates are optional.
+#### `RefreshToken`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `UserId` | Guid | — |  |
+| `FamilyId` | Guid | — | Every token descended from one login shares this. Revoking on reuse works on the family, not the single row, so a stolen token cannot be traded for a fresh one |
+| `TokenHash` | string | — | SHA-256 of the token, never the token itself. A leaked database must not hand out working sessions |
+| `CreatedAt` | DateTimeOffset | — |  |
+| `ExpiresAt` | DateTimeOffset | — |  |
+| `UsedAt` | DateTimeOffset | yes | Set when exchanged. Non-null here plus a fresh presentation is the theft signal |
+| `RevokedAt` | DateTimeOffset | yes | Set on logout, on password change, or when the family is revoked |
+
+#### `User`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `Email` | string | — | Unique, and the login identifier. Stored lowercased so lookups are unambiguous |
+| `PasswordHash` | string | — | PBKDF2 via IPasswordHasher. Never a plaintext or reversible value |
+| `FullName` | string | — |  |
+| `Phone` | string | — |  |
+| `IsActive` | bool | — | Deactivation instead of deletion — orders must keep resolving their customer |
+| `CreatedAt` | DateTimeOffset | — |  |
+
+#### `UserRole`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `UserId` | Guid | — |  |
+| `Role` | RoleType | — |  |
+
+### Restaurants (the tenant)
+
+#### `Restaurant`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `Name` | string | — |  |
+| `Slug` | string | — | Unique, URL-safe. What appears in a storefront link rather than the id |
+| `Description` | string | yes |  |
+| `LogoUrl` | string | yes |  |
+| `CoverUrl` | string | yes |  |
+| `Phone` | string | — |  |
+| `IsActive` | bool | — | Set by a platform admin. False hides the restaurant entirely |
+| `IsAcceptingOrders` | bool | — | The restaurant's own switch, for a rush or an unplanned closure. Separate from `IsActive` so a busy kitchen never needs a platform admin, and separate from opening hours so it can override them in either direction |
+| `CommissionPercent` | decimal | — | Current rate, applied to new orders only. Each order snapshots its own copy, so changing this never rewrites historical settlement |
+| `MinOrderUsd` | decimal | — | Checked against the subtotal, excluding delivery fee |
+| `DefaultPrepMinutes` | int | — | Kitchen time. Delivery time comes from the zone and is added on top |
+| `CreatedAt` | DateTimeOffset | — |  |
+
+#### `RestaurantHours`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `RestaurantId` | Guid | — |  |
+| `DayOfWeek` | DayOfWeek | — |  |
+| `OpenTime` | TimeOnly | — | Local restaurant wall-clock time, not UTC. A kitchen opens at 11am regardless of offset |
+| `CloseTime` | TimeOnly | — | May be earlier than `OpenTime`, meaning the window runs past midnight — 18:00 to 02:00 is one row, not two |
+
+#### `RestaurantStaff`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `UserId` | Guid | — |  |
+| `RestaurantId` | Guid | — |  |
+| `StaffRole` | StaffRoleType | — |  |
+| `CreatedAt` | DateTimeOffset | — |  |
+
+### Geography and addresses
+
+#### `Address`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `UserId` | Guid | — |  |
+| `ZoneId` | Guid | — |  |
+| `Label` | string | — | The customer's own name for it — "Home", "Office" |
+| `Line1` | string | — |  |
+| `Building` | string | yes |  |
+| `Floor` | string | yes |  |
+| `Landmark` | string | yes | "Above the pharmacy, opposite the church." In practice the most useful field here |
+| `Lat` | decimal | yes |  |
+| `Lng` | decimal | yes |  |
+| `IsDefault` | bool | — | At most one per user; enforced by a filtered unique index |
+| `CreatedAt` | DateTimeOffset | — |  |
+| `IsDeleted` | bool | — | Soft delete. Orders reference the address they were delivered to, so removing the row would erase where a past order went |
+
+#### `DeliveryZone`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `Name` | string | — |  |
+| `IsActive` | bool | — |  |
+
+#### `RestaurantZone`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `RestaurantId` | Guid | — |  |
+| `ZoneId` | Guid | — |  |
+| `DeliveryFeeUsd` | decimal | — |  |
+| `EstimatedMinutes` | int | — | Travel time only. The customer's estimate is this plus the restaurant's prep time |
+| `IsActive` | bool | — | Lets a restaurant suspend a zone without losing its configured fee |
+
+### Menu and options
+
+#### `Category`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `RestaurantId` | Guid | — |  |
+| `Name` | string | — |  |
+| `SortOrder` | int | — | Display position. The menu is never sorted alphabetically — sequence is a choice the restaurant makes |
+| `IsActive` | bool | — |  |
+
+#### `MenuItem`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `RestaurantId` | Guid | — |  |
+| `CategoryId` | Guid | — |  |
+| `Name` | string | — |  |
+| `Description` | string | yes |  |
+| `BasePriceUsd` | decimal | — | USD, decimal(10,2). Never float — see the money rules in ARCHITECTURE.md |
+| `ImageUrl` | string | yes |  |
+| `IsAvailable` | bool | — | Sold out for now. The item stays visible and greyed out rather than vanishing, because a disappearing item reads as a broken menu to a returning customer |
+| `SortOrder` | int | — |  |
+| `IsDeleted` | bool | — | Soft delete. A hard delete would orphan every historical order line that sold this item. Deleted items are excluded by a global query filter, not by each caller remembering |
+| `CreatedAt` | DateTimeOffset | — |  |
+
+#### `MenuItemOptionGroup`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `MenuItemId` | Guid | — |  |
+| `OptionGroupId` | Guid | — |  |
+| `SortOrder` | int | — | Position of this group on this item's detail screen |
+| `MinSelectOverride` | int | yes | Null inherits `MinSelect` |
+| `MaxSelectOverride` | int | yes | Null inherits `MaxSelect`. Note that an inherited null and an overriding null are the same value, so removing a cap for one item means clearing the override, not setting it to null |
+
+#### `Option`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `OptionGroupId` | Guid | — |  |
+| `Name` | string | — |  |
+| `PriceDeltaUsd` | decimal | — | Added to the item's base price. Zero is normal ("no pickles"), and negative is allowed so a removal can genuinely discount the line |
+| `MaxQuantity` | int | — | How many times this one option may be taken on a single line — 2 permits double cheese. One means on or off |
+| `IsAvailable` | bool | — |  |
+| `SortOrder` | int | — |  |
+| `IsDeleted` | bool | — | Soft delete. Order lines keep a nullable reference back to this row |
+
+#### `OptionGroup`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `RestaurantId` | Guid | — |  |
+| `Name` | string | — |  |
+| `MinSelect` | int | — | Zero means the group is optional. One or more makes it a required choice |
+| `MaxSelect` | int | yes | Null means unlimited. One makes the group behave as a radio |
+| `SortOrder` | int | — |  |
+| `IsDeleted` | bool | — | Soft delete, for the same reason menu items have one: order lines reference these |
+
+### Cart
+
+#### `Cart`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `UserId` | Guid | — |  |
+| `RestaurantId` | Guid | — |  |
+| `CreatedAt` | DateTimeOffset | — |  |
+| `UpdatedAt` | DateTimeOffset | — |  |
+
+#### `CartLine`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `CartId` | Guid | — |  |
+| `MenuItemId` | Guid | — |  |
+| `Quantity` | int | — |  |
+| `Note` | string | yes | Free text from the customer — "no pickles", "well done" |
+
+#### `CartLineOption`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `CartLineId` | Guid | — |  |
+| `OptionId` | Guid | — |  |
+| `Quantity` | int | — | Bounded by `MaxQuantity`, validated server-side at checkout |
+
+### Orders, payment and history
+
+#### `Order`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `OrderNumber` | string | — | Human-readable reference shown to customer and kitchen. Unique across the platform |
+| `CustomerId` | Guid | — |  |
+| `RestaurantId` | Guid | — |  |
+| `AddressId` | Guid | yes | Null for pickup. Kept for reporting only — everything needed to deliver the order is in the snapshot fields below, because the customer may edit or delete this address later |
+| `FulfillmentType` | FulfillmentType | — |  |
+| `Status` | OrderStatus | — |  |
+| `DeliveryZoneName` | string | yes |  |
+| `DeliveryLine1` | string | yes |  |
+| `DeliveryBuilding` | string | yes |  |
+| `DeliveryFloor` | string | yes |  |
+| `DeliveryLandmark` | string | yes |  |
+| `DeliveryLat` | decimal | yes |  |
+| `DeliveryLng` | decimal | yes |  |
+| `PaymentMethod` | PaymentMethod | — |  |
+| `PaymentStatus` | PaymentStatus | — |  |
+| `SubtotalUsd` | decimal | — | Sum of the order lines. Minimum-order checks run against this, not the total |
+| `DeliveryFeeUsd` | decimal | — |  |
+| `TaxUsd` | decimal | — | Always zero — no tax was in scope. The column stays so that charging VAT later is a configuration change, not a migration plus a rewrite of every historical total |
+| `DiscountUsd` | decimal | — |  |
+| `TotalUsd` | decimal | — | Subtotal + delivery fee + tax − discount. Stored, not computed on read |
+| `ExchangeRateLbp` | decimal | — | Rate in force when the order was placed. The customer's receipt shows the same LBP figure forever, however far the rate moves afterwards |
+| `CommissionPercent` | decimal | — | The restaurant's rate at the time, copied here. Changing a restaurant's commission must never silently restate past settlement |
+| `CommissionUsd` | decimal | — | Money value of the commission, so settlement never re-derives it from a percentage |
+| `PromisedMinutesMin` | int | — | Prep time plus the zone's travel estimate, frozen so the promise can be judged after the fact |
+| `PromisedMinutesMax` | int | — |  |
+| `CustomerNote` | string | yes |  |
+| `RejectionReason` | RejectionReason | yes | Required when `Status` is Rejected, null otherwise |
+| `RejectionNote` | string | yes | Optional detail alongside the reason. Never a substitute for it |
+| `IdempotencyKey` | Guid | — | Supplied by the client, one per checkout attempt. A unique index on it means a double-tap on a poor connection returns the original order rather than creating a second one |
+| `RowVersion` | byte[] | — | SQL Server rowversion. Two staff pressing Accept on two tablets: the second write fails and the screen refreshes, instead of both appearing to succeed |
+| `PlacedAt` | DateTimeOffset | — |  |
+
+#### `OrderEvent`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `OrderId` | Guid | — |  |
+| `FromStatus` | OrderStatus | yes | Null on the first event, where the order came into being at Placed |
+| `ToStatus` | OrderStatus | — |  |
+| `ChangedByUserId` | Guid | yes | Null when the platform itself made the change rather than a person |
+| `Note` | string | yes |  |
+| `CreatedAt` | DateTimeOffset | — |  |
+
+#### `OrderLine`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `OrderId` | Guid | — |  |
+| `MenuItemId` | Guid | yes | Nullable and for reporting only ("how many times did we sell this dish?"). Never read to display the line — the item may since have been deleted |
+| `ItemNameSnapshot` | string | — | The item's name at the moment of ordering |
+| `UnitPriceUsd` | decimal | — | Base price plus every selected option's delta, per unit |
+| `Quantity` | int | — |  |
+| `LineTotalUsd` | decimal | — | UnitPrice × Quantity, stored rather than computed so historical arithmetic cannot drift |
+| `Note` | string | yes |  |
+
+#### `OrderLineOption`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `OrderLineId` | Guid | — |  |
+| `OptionId` | Guid | yes | Nullable, for reporting only. Same reasoning as OrderLine.MenuItemId |
+| `GroupNameSnapshot` | string | — |  |
+| `OptionNameSnapshot` | string | — |  |
+| `PriceDeltaUsd` | decimal | — | Per unit of this option, as it was priced then. May be zero or negative |
+| `Quantity` | int | — |  |
+
+#### `Payment`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `OrderId` | Guid | — |  |
+| `Method` | PaymentMethod | — |  |
+| `AmountUsd` | decimal | — |  |
+| `Status` | PaymentStatus | — |  |
+| `ProviderRef` | string | yes | The gateway's own reference. Null for cash, which has no provider |
+| `CreatedAt` | DateTimeOffset | — |  |
+
+### Platform configuration
+
+#### `ExchangeRate`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Id` | Guid | — |  |
+| `RateLbpPerUsd` | decimal | — | Lebanese pounds per one US dollar |
+| `EffectiveFrom` | DateTimeOffset | — |  |
+| `SetByUserId` | Guid | — |  |
+| `CreatedAt` | DateTimeOffset | — |  |
+
+#### `PlatformSetting`
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `Key` | string | — | Primary key. See `PlatformSettingKeys` for the known names |
+| `Value` | string | — |  |
+| `UpdatedAt` | DateTimeOffset | — |  |
+| `UpdatedByUserId` | Guid | yes |  |
 
 ---
 
-## 3. Menu and options
+## 3. The rules this schema encodes
 
-```mermaid
-classDiagram
-    class Category {
-        Guid Id
-        Guid RestaurantId
-        string Name
-        int SortOrder
-        bool IsActive
-    }
-    class MenuItem {
-        Guid Id
-        Guid RestaurantId
-        Guid CategoryId
-        string Name
-        string Description
-        decimal BasePriceUsd
-        string ImageUrl
-        bool IsAvailable
-        int SortOrder
-        bool IsDeleted
-    }
-    class OptionGroup {
-        Guid Id
-        Guid RestaurantId
-        string Name
-        int MinSelect
-        int MaxSelect
-        int SortOrder
-    }
-    class Option {
-        Guid Id
-        Guid OptionGroupId
-        string Name
-        decimal PriceDeltaUsd
-        int MaxQuantity
-        bool IsAvailable
-        int SortOrder
-    }
-    class MenuItemOptionGroup {
-        Guid MenuItemId
-        Guid OptionGroupId
-        int SortOrder
-        int MinSelectOverride
-        int MaxSelectOverride
-    }
+**Snapshots.** `OrderLine`, `OrderLineOption` and the `Delivery*` fields on `Order` are copies,
+not lookups. A price rise, a renamed dish, an edited address or a changed commission rate cannot
+reach backwards into an order that is already placed. `Order.CommissionPercent` is snapshotted for
+the same reason: settlement figures for last month must not move when this month's rate changes.
 
-    Category "1" --> "*" MenuItem : groups
-    MenuItem "1" --> "*" MenuItemOptionGroup : attaches
-    OptionGroup "1" --> "*" MenuItemOptionGroup : attached to
-    OptionGroup "1" --> "*" Option : offers
-```
+**Tenancy.** Every menu, cart and order table carries `RestaurantId`. Nothing relies on the UI
+hiding a button.
 
-**Nullable:** `MenuItem.Description`, `MenuItem.ImageUrl`, `OptionGroup.MaxSelect` (null = unlimited),
-`MenuItemOptionGroup.MinSelectOverride`, `MenuItemOptionGroup.MaxSelectOverride`.
+**Soft delete.** `MenuItem`, `OptionGroup`, `Option` and `Address` are never physically removed,
+because order rows point at them. `User` has `IsActive` rather than deletion for the same reason.
 
-**Notes.**
-`MenuItemOptionGroup` is the many-to-many that lets one "Extras" group serve every burger.
-The two override columns answer the per-item limit problem: null inherits the group's value,
-a number applies to that item alone. Effective limit is `override ?? group`.
+**Money.** Every monetary column is `decimal`, USD, and will be configured as `decimal(10,2)` in
+Step 4. LBP is never stored — it is computed from `Order.ExchangeRateLbp`, which is frozen at
+placement so a receipt shows the same figure forever.
 
-`MenuItem.IsDeleted` is a soft delete — a hard delete would orphan historical order lines.
+**Time.** Every timestamp is `DateTimeOffset`, not `DateTime`. `DateTime` carries a `Kind` flag
+that is easy to lose across a serialisation boundary, and the result is a local time silently
+stored as if it were UTC. `DateTimeOffset` makes that mistake unrepresentable. The exception is
+`RestaurantHours`, which uses `TimeOnly` because a kitchen opens at 11am regardless of offset.
+
+**Concurrency.** `Order.RowVersion` is the only concurrency token in the schema, because the order
+is the only row two people race to change.
+
+**Enum stability.** Every enum member has an explicit number, and a test fails the build if any
+enum has a member valued 0. Enums are stored as integers; if someone inserts a value in the middle
+and the numbering shifts, every existing row silently changes meaning.
 
 ---
 
-## 4. Cart
+## 4. Two limitations worth knowing about
 
-```mermaid
-classDiagram
-    class Cart {
-        Guid Id
-        Guid UserId
-        Guid RestaurantId
-        DateTime UpdatedAt
-    }
-    class CartLine {
-        Guid Id
-        Guid CartId
-        Guid MenuItemId
-        int Quantity
-        string Note
-    }
-    class CartLineOption {
-        Guid CartLineId
-        Guid OptionId
-        int Quantity
-    }
+**An item cannot widen a group's cap to unlimited.** `MaxSelectOverride` uses null to mean
+"inherit", and `OptionGroup.MaxSelect` uses null to mean "unlimited" — so there is no value that
+says "this item has no cap even though the group does". The workaround is to leave the group
+uncapped and set a limit per item. Fixing it properly would need a sentinel value or a second
+flag, and neither is worth the confusion for a case that has not come up.
 
-    Cart "1" --> "*" CartLine : holds
-    CartLine "1" --> "*" CartLineOption : selects
-```
-
-**Nullable:** `CartLine.Note`.
-
-**Notes.**
-One cart per user per restaurant. The cart references *live* menu rows and carries no prices —
-prices are read fresh on every view and only frozen at checkout. This is deliberate: a cart that
-stored prices would let a customer hold a stale price indefinitely.
+**`EffectiveMinSelect` and `EffectiveMaxSelect` need the group loaded.** They read through the
+`OptionGroup` navigation, so a caller that fetched a `MenuItemOptionGroup` without an `Include`
+gets a null reference. Option validation always loads the group, so this is safe where it matters
+— but it is a sharp edge, and Step 4 will note it in the configuration.
 
 ---
 
-## 5. Orders, payment and money
-
-```mermaid
-classDiagram
-    class Order {
-        Guid Id
-        string OrderNumber
-        Guid CustomerId
-        Guid RestaurantId
-        Guid AddressId
-        FulfillmentType FulfillmentType
-        OrderStatus Status
-        PaymentMethod PaymentMethod
-        PaymentStatus PaymentStatus
-        decimal SubtotalUsd
-        decimal DeliveryFeeUsd
-        decimal TaxUsd
-        decimal DiscountUsd
-        decimal TotalUsd
-        decimal ExchangeRateLbp
-        decimal CommissionPercent
-        decimal CommissionUsd
-        int PromisedMinutesMin
-        int PromisedMinutesMax
-        string CustomerNote
-        string RejectionReason
-        Guid IdempotencyKey
-        byte[] RowVersion
-        DateTime PlacedAt
-    }
-    class OrderLine {
-        Guid Id
-        Guid OrderId
-        Guid MenuItemId
-        string ItemNameSnapshot
-        decimal UnitPriceUsd
-        int Quantity
-        decimal LineTotalUsd
-        string Note
-    }
-    class OrderLineOption {
-        Guid Id
-        Guid OrderLineId
-        Guid OptionId
-        string GroupNameSnapshot
-        string OptionNameSnapshot
-        decimal PriceDeltaUsd
-        int Quantity
-    }
-    class OrderEvent {
-        Guid Id
-        Guid OrderId
-        OrderStatus FromStatus
-        OrderStatus ToStatus
-        Guid ChangedByUserId
-        string Note
-        DateTime CreatedAt
-    }
-    class Payment {
-        Guid Id
-        Guid OrderId
-        PaymentMethod Method
-        decimal AmountUsd
-        PaymentStatus Status
-        string ProviderRef
-        DateTime CreatedAt
-    }
-    class ExchangeRate {
-        Guid Id
-        decimal RateLbpPerUsd
-        DateTime EffectiveFrom
-        Guid SetByUserId
-    }
-
-    Order "1" --> "*" OrderLine : contains
-    OrderLine "1" --> "*" OrderLineOption : selected
-    Order "1" --> "*" OrderEvent : logs
-    Order "1" --> "*" Payment : settled by
-```
-
-**Nullable:** `Order.AddressId` (null for pickup), `Order.CustomerNote`, `Order.RejectionReason`,
-`OrderLine.MenuItemId`, `OrderLine.Note`, `OrderLineOption.OptionId`, `OrderEvent.Note`,
-`Payment.ProviderRef`.
-
-**Notes.**
-
-*The snapshot rule.* `OrderLine` and `OrderLineOption` keep the name and price as sold, and their
-FKs to `MenuItem` and `Option` are nullable and used only for reporting. When a restaurant renames
-a burger or raises its price, last month's orders stay exactly as they were sold.
-
-*`CommissionPercent` is snapshotted too*, so changing a restaurant's rate never rewrites historical
-settlement figures.
-
-*`TaxUsd` stays at 0.* No tax was decided this round; the column remains so that turning VAT on
-later is a config change rather than a migration plus a backfill of every historical total.
-
-*`IdempotencyKey` carries a unique index.* A double-tap on a bad connection returns the original
-order instead of creating a second one.
-
-*`RowVersion` is the concurrency token.* Two staff pressing Accept on two tablets: the second write
-fails and the UI refreshes, instead of both succeeding.
-
----
-
-## 6. Why one multi-tenant platform, not a copy sold per restaurant
+## 5. Why one multi-tenant platform, not a copy sold per restaurant
 
 This is the fork worth being deliberate about, because the two paths are different businesses,
 not just different code.
