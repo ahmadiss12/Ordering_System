@@ -4,8 +4,8 @@ A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle the
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 (foundation), steps 0–2 complete — toolchain, repository skeleton and
-solution scaffold. No domain code yet.
+**Status:** Phase 1 (foundation), steps 0–5 complete — toolchain, skeleton, solution, the 26
+entities, EF configuration and the initial migration. The database builds and the API starts.
 
 ## Documentation
 
@@ -35,13 +35,29 @@ or the `dotnet` CLI. Any editor works via the CLI.
 
 ## Getting started
 
+```powershell
+git clone -b claude/project-structure-requirements-vu98q6 https://github.com/ahmadiss12/Ordering_System.git
+cd Ordering_System
+copy .env.example .env          # then set a password meeting SQL Server's complexity rules
+
+powershell -ExecutionPolicy Bypass -File scripts\verify.ps1
+```
+
+`verify.ps1` checks everything in one pass and says which piece failed rather than just
+"build failed": prerequisites, containers, build, migrations, schema shape, tests, and the
+API answering on `/health`. Run it first after cloning.
+
+To do it by hand instead:
+
 ```bash
-cp .env.example .env            # then set a password that meets SQL Server's complexity rules
 docker compose -f docker/docker-compose.yml up -d
 
 cd api
 dotnet build OrderingSystem.slnx
-dotnet test  OrderingSystem.slnx
+dotnet ef database update --project src/OrderingSystem.Infrastructure \
+                          --startup-project src/OrderingSystem.Infrastructure
+dotnet test OrderingSystem.slnx
+dotnet run  --project src/OrderingSystem.Api
 ```
 
 Mailpit's web UI is at http://localhost:8025 — every email the API sends in development is
