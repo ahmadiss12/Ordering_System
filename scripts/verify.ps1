@@ -146,6 +146,15 @@ Write-Step 'check constraints' ($checks -eq '12') "$checks of 12"
 $maxCols = Invoke-Sql "SELECT COUNT(*) FROM sys.columns c JOIN sys.types ty ON ty.user_type_id = c.user_type_id JOIN sys.tables t ON t.object_id = c.object_id WHERE ty.name = 'nvarchar' AND c.max_length = -1 AND t.is_ms_shipped = 0"
 Write-Step 'no unbounded text columns' ($maxCols -eq '0') "$maxCols nvarchar(max) found"
 
+Write-Host '        seeding demo data...' -ForegroundColor DarkGray
+$env:ConnectionStrings__Default = "Server=localhost,1433;Database=OrderingSystem;User Id=sa;Password=$SaPassword;TrustServerCertificate=True"
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+& dotnet run --project (Join-Path (Join-Path $apiRoot 'src') 'OrderingSystem.Api') --no-launch-profile -- --seed 2>&1 |
+    Out-String | Write-Verbose
+$restaurantCount = Invoke-Sql 'SELECT COUNT(*) FROM Restaurants'
+$itemCount = Invoke-Sql 'SELECT COUNT(*) FROM MenuItems'
+Write-Step 'demo data seeded' ($restaurantCount -eq '3') "$restaurantCount restaurants, $itemCount menu items"
+
 # ---------------------------------------------------------------- tests
 Write-Head '5. Tests'
 

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Infrastructure.Persistence;
+using OrderingSystem.Infrastructure.Persistence.Seed;
 
 namespace OrderingSystem.Infrastructure;
 
@@ -34,6 +35,7 @@ public static class DependencyInjection
             }));
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        services.AddScoped<DatabaseSeeder>();
 
         return services;
     }
