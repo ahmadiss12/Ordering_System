@@ -70,3 +70,10 @@ trim_trailing_whitespace = false
 # as generated tells every Roslyn analyzer to leave it alone.
 [**/Migrations/*.cs]
 generated_code = true
+
+# The seeder runs once from the command line and logs a handful of lines. CA1848's
+# LoggerMessage delegates and CA1873's lazy-evaluation guard exist for hot paths that log
+# thousands of times a second; a one-shot CLI task is not one of them.
+[**/Persistence/Seed/*.cs]
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none

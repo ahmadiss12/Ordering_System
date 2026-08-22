@@ -4,8 +4,9 @@ A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle the
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 (foundation), steps 0–5 complete — toolchain, skeleton, solution, the 26
-entities, EF configuration and the initial migration. The database builds and the API starts.
+**Status:** Phase 1 (foundation), steps 0–6 complete — toolchain, skeleton, solution, the 26
+entities, EF configuration, the initial migration and seed data. The database builds, the API
+starts, and there are three restaurants with real menus in it.
 
 ## Documentation
 
@@ -56,6 +57,7 @@ cd api
 dotnet build OrderingSystem.slnx
 dotnet ef database update --project src/OrderingSystem.Infrastructure \
                           --startup-project src/OrderingSystem.Infrastructure
+dotnet run  --project src/OrderingSystem.Api -- --seed   # demo data, safe to re-run
 dotnet test OrderingSystem.slnx
 dotnet run  --project src/OrderingSystem.Api
 ```
@@ -96,3 +98,21 @@ Api             → Application, Infrastructure   controllers, auth, SignalR, DI
   reference packages without a version.
 - Warnings are errors. This is how a vulnerable transitive package or an unhandled null
   gets caught at build time rather than in review.
+
+## Seed accounts
+
+`dotnet run --project src/OrderingSystem.Api -- --seed` fills an empty database with three
+restaurants, 24 menu items, 10 Beirut delivery zones and these accounts. Password for all:
+`Passw0rd!` — development data only.
+
+| Email | Role |
+|---|---|
+| `admin@ordering.test` | Platform admin |
+| `owner@frieslab.test` | Owner, FriesLab |
+| `staff@frieslab.test` | Staff, FriesLab |
+| `owner@mezze.test` | Owner, Beirut Mezze House |
+| `rita@example.test` | Customer, two saved addresses |
+| `joe@example.test` | Customer |
+
+Safe to run repeatedly: every insert is guarded, and ids are derived from names rather than
+random, so re-seeding does not move anything.
