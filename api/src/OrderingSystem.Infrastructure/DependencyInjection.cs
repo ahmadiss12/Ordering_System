@@ -2,6 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OrderingSystem.Application.Abstractions;
+using OrderingSystem.Infrastructure.Email;
+using OrderingSystem.Infrastructure.Identity;
+using OrderingSystem.Infrastructure.Time;
 using OrderingSystem.Infrastructure.Persistence;
 using OrderingSystem.Infrastructure.Persistence.Seed;
 
@@ -36,6 +39,21 @@ public static class DependencyInjection
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<DatabaseSeeder>();
+
+        services.AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection(JwtOptions.SectionName))
+            // Fail at startup rather than issue unsigned-in-practice tokens because a key was
+            // missing. A weak key is as good as no key, so the length is checked too.
+            .Validate(o => o.SigningKey.Length >= 32,
+                "Jwt:SigningKey must be set and at least 32 characters.")
+            .ValidateOnStart();
+
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+
+        services.AddSingleton<IClock, SystemClock>();
+        services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
+        services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         return services;
     }

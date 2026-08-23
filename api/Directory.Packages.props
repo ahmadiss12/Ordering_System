@@ -29,6 +29,19 @@
     <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
   </ItemGroup>
 
+  <!-- Application registers its own services and reads its own options, so it needs the
+       abstractions for both. Neither pulls in a hosting or provider dependency. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
+  </ItemGroup>
+
+  <!-- SMTP. System.Net.Mail.SmtpClient is discouraged for new code; MailKit is what
+       Microsoft's own docs point at. -->
+  <ItemGroup>
+    <PackageVersion Include="MailKit" Version="4.16.0" />
+  </ItemGroup>
+
   <!-- Logging and API documentation -->
   <ItemGroup>
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
