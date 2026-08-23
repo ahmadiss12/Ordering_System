@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.IdentityModel.JsonWebTokens;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Domain.Enums;
 
@@ -17,11 +18,14 @@ public sealed class HttpTenantContext(IHttpContextAccessor accessor) : ITenantCo
     /// <summary>Claim carrying the restaurant a staff member belongs to.</summary>
     public const string RestaurantIdClaim = "restaurant_id";
 
+    /// <summary>Role claim type. Matches the RoleClaimType configured on the bearer handler.</summary>
+    public const string RoleClaim = "role";
+
     private readonly IHttpContextAccessor _accessor = accessor;
 
     private ClaimsPrincipal? Principal => _accessor.HttpContext?.User;
 
-    public Guid? UserId => ReadGuid(ClaimTypes.NameIdentifier);
+    public Guid? UserId => ReadGuid(JwtRegisteredClaimNames.Sub);
 
     public Guid? RestaurantId => ReadGuid(RestaurantIdClaim);
 

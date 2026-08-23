@@ -1,6 +1,13 @@
-using OrderingSystem.Api.Auth;
-using OrderingSystem.Application.Abstractions;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
+using OrderingSystem.Api.Auth;
+using OrderingSystem.Api.Middleware;
+using OrderingSystem.Application;
+using OrderingSystem.Application.Abstractions;
+using OrderingSystem.Application.Features.Auth;
 using OrderingSystem.Infrastructure;
 using OrderingSystem.Infrastructure.Persistence;
 using OrderingSystem.Infrastructure.Persistence.Seed;
@@ -11,13 +18,48 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<DomainExceptionHandler>();
+
 builder.Services.AddHttpContextAccessor();
 
 // Scoped, not singleton: it reads the current request's claims, and a singleton would leak one
 // caller's identity into another's queries.
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
 
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        // Without this, ASP.NET rewrites "sub" into a long legacy URI claim type and the token's
+        // real shape stops matching what the code reads. Off means claims arrive as issued.
+        options.MapInboundClaims = false;
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSection["SigningKey"] ?? string.Empty)),
+
+            NameClaimType = JwtRegisteredClaimNames.Sub,
+            RoleClaimType = HttpTenantContext.RoleClaim,
+
+            // The default five minutes means an expired token keeps working for five more.
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -32,6 +74,8 @@ if (args.Contains("--seed", StringComparer.Ordinal))
     return;
 }
 
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -39,6 +83,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 // Liveness probe. Kept trivial on purpose: it must not touch the database,
