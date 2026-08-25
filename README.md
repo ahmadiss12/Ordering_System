@@ -8,7 +8,7 @@ whether the customer paid cash or online.
 
 **Status:** Phase 1 (foundation) complete — toolchain, skeleton, solution, the 26
 entities, EF configuration, the initial migration, seed data, authentication, tenant
-isolation and CI. 45 tests pass. The database builds, the API
+isolation and CI. 64 tests pass. The database builds, the API
 starts, and there are three restaurants with real menus in it.
 
 ## Documentation
@@ -128,11 +128,20 @@ cd api
 dotnet test OrderingSystem.slnx
 ```
 
-| Project | Covers | Needs Docker |
+64 tests, one group per part of the foundation:
+
+| Covers | Where | Needs Docker |
 |---|---|---|
-| `Domain.Tests` | The dependency rule, enum numbering, the query-filter allowlist | no |
-| `Application.Tests` | Password and email rules | no |
-| `Api.IntegrationTests` | Schema constraints, the auth flow, tenant isolation | yes |
+| Toolchain and infrastructure config | `Domain.Tests/Architecture/RepositoryConventionTests` | no |
+| The dependency rule between projects | `Domain.Tests/Architecture/DependencyRuleTests` | no |
+| Enum numbering stability | `Domain.Tests/Architecture/DependencyRuleTests` | no |
+| The query-filter bypass allowlist | `Domain.Tests/Architecture/QueryFilterBypassTests` | no |
+| Password and email rules | `Application.Tests/Auth` | no |
+| Schema, indexes and check constraints | `Api.IntegrationTests/Persistence` | yes |
+| The application booting and serving | `Api.IntegrationTests/Startup` | yes |
+| Seed data and its idempotency | `Api.IntegrationTests/Seed` | yes |
+| Registration, login, rotation, reset | `Api.IntegrationTests/Auth` | yes |
+| Tenant isolation | `Api.IntegrationTests/Tenancy` | yes |
 
 The integration tests start a real SQL Server per run through Testcontainers. The EF in-memory
 provider is deliberately not used: it enforces no unique index, no check constraint and no
