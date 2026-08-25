@@ -1,12 +1,14 @@
 # Ordering System
 
+[![CI](https://github.com/ahmadiss12/Ordering_System/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmadiss12/Ordering_System/actions/workflows/ci.yml)
+
 A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle their own
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 (foundation), steps 0–8 complete — toolchain, skeleton, solution, the 26
-entities, EF configuration, the initial migration, seed data, authentication and tenant
-isolation. The database builds, the API
+**Status:** Phase 1 (foundation) complete — toolchain, skeleton, solution, the 26
+entities, EF configuration, the initial migration, seed data, authentication, tenant
+isolation and CI. 45 tests pass. The database builds, the API
 starts, and there are three restaurants with real menus in it.
 
 ## Documentation
@@ -69,6 +71,7 @@ caught there instead of reaching a real inbox.
 ## Layout
 
 ```
+.github/      CI: build, test, and a dependency-advisory scan
 api/          ASP.NET Core solution (Domain / Application / Infrastructure / Api + tests)
 web/          Angular workspace                          — Phase 2
 mobile/       React Native app                           — Phase 5
@@ -117,3 +120,24 @@ restaurants, 24 menu items, 10 Beirut delivery zones and these accounts. Passwor
 
 Safe to run repeatedly: every insert is guarded, and ids are derived from names rather than
 random, so re-seeding does not move anything.
+
+## Tests
+
+```bash
+cd api
+dotnet test OrderingSystem.slnx
+```
+
+| Project | Covers | Needs Docker |
+|---|---|---|
+| `Domain.Tests` | The dependency rule, enum numbering, the query-filter allowlist | no |
+| `Application.Tests` | Password and email rules | no |
+| `Api.IntegrationTests` | Schema constraints, the auth flow, tenant isolation | yes |
+
+The integration tests start a real SQL Server per run through Testcontainers. The EF in-memory
+provider is deliberately not used: it enforces no unique index, no check constraint and no
+concurrency token, so those tests would pass whether the code was right or wrong.
+
+CI runs the same commands on every push, plus `dotnet list package --vulnerable`, which is how a
+newly disclosed advisory in a package we already depend on becomes visible rather than waiting
+for someone to notice.

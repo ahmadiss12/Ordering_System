@@ -1,0 +1,113 @@
+name: CI
+
+# Path-scoped, which ADR-01 called out as the cost of a monorepo: an Angular change in a later
+# phase must not rebuild and re-test the API.
+on:
+  push:
+    branches: ["main", "claude/**"]
+    paths:
+      - "api/**"
+      - "global.json"
+      - ".editorconfig"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "api/**"
+      - "global.json"
+      - ".editorconfig"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+# A second push supersedes the first. No point finishing a run for a commit nobody will look at.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  SOLUTION: api/OrderingSystem.slnx
+
+jobs:
+  api:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from global.json, so CI and every developer machine cannot drift.
+      - name: Install .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          # Central package management means one file decides every version, so it is the
+          # only thing the cache key needs to watch.
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      # Warnings are errors in Directory.Build.props, so this step also enforces code style
+      # and catches vulnerable transitive packages at restore time.
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION }} --configuration Release --no-restore
+
+      # The integration tests start a real SQL Server through Testcontainers. GitHub's
+      # ubuntu runners ship a working Docker daemon, so nothing extra is needed here.
+      - name: Test
+        run: >
+          dotnet test ${{ env.SOLUTION }}
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=results.trx"
+          --results-directory ${{ github.workspace }}/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
+
+  security:
+    name: Dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      # A build catches advisories known on the day the lock was written. This re-asks the
+      # question on every run, which is how a newly disclosed CVE in a package we already
+      # depend on becomes visible. Transitive included: the one we hit came in through
+      # Testcontainers, not from anything we referenced directly.
+      - name: Check for vulnerable packages
+        run: |
+          dotnet list ${{ env.SOLUTION }} package --vulnerable --include-transitive \
+            > vulnerable.txt 2>&1 || true
+          cat vulnerable.txt
+          if grep -qiE '\b(Critical|High|Moderate)\b' vulnerable.txt; then
+            echo "::error::Vulnerable package(s) found - see the listing above."
+            exit 1
+          fi
+          echo "No vulnerable packages."
+
+      - name: Check for deprecated packages
+        run: dotnet list ${{ env.SOLUTION }} package --deprecated --include-transitive
