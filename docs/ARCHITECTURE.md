@@ -158,6 +158,18 @@ The second reason is specific to this being a sellable product: if it is ever ha
 
 **Why three layers.** Filters alone are a trap. They are invisible at the call site, so a developer cannot tell by reading a method whether protection is active, and a single `IgnoreQueryFilters()` — legitimately needed for platform-admin reporting — silently disables them. Explicit checks alone are worse: they rely on nobody ever forgetting. Together, the filter is the net and the explicit check is the assertion.
 
+**Child tables need their own filters.** EF does not apply a parent's filter to its children, so
+filtering `Order` protected `SELECT * FROM Orders` and did nothing at all for `SELECT * FROM
+OrderLines` — which carries the item names and prices of every restaurant on the platform.
+`OrderLine`, `OrderLineOption`, `OrderEvent`, `Payment`, `CartLine` and `CartLineOption` now
+restate their parent's rule through a navigation. It costs a join on every child query, and the
+alternative was a convention that holds only until somebody forgets it.
+
+**`IgnoreQueryFilters` is allowlisted.** Two files legitimately need it — the seeder, which runs
+with no signed-in user, and the login path, which reads `RestaurantStaff` to decide what the
+tenant *is*. A test enumerates every other use and fails the build, and a second test removes
+allowlist entries once they stop being needed.
+
 **The known footgun.** A platform admin must see across all tenants, so `ITenantContext.RestaurantId` is null for that role and the filter short-circuits. This means *the security of every tenant-scoped query depends on that one null check being right*. It gets its own dedicated tests, and no other code path is allowed to construct an admin-scoped context.
 
 **Why not database per tenant.** Strongest possible isolation, and the usual choice when tenants demand it contractually. It fails here on a first-class requirement: the platform admin's cross-restaurant reports and settlement runs would have to fan out across N databases and merge in application code. It also multiplies migration risk by N.

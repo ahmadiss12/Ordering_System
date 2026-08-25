@@ -59,7 +59,7 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddOrderingPolicies());
 
 var app = builder.Build();
 

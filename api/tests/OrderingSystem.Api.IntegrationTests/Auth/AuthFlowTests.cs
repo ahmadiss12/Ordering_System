@@ -176,7 +176,7 @@ public sealed class AuthFlowTests(ApiFactory factory) : IClassFixture<ApiFactory
         var response = await Client.PostAsJsonAsync("/api/auth/register",
             new RegisterRequest(email, "Passw0rd123", "Test User", "+9613000000"), Ct);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSucceededAsync(response);
         return (await response.Content.ReadFromJsonAsync<AuthTokensResponse>(Ct))!;
     }
 
@@ -185,8 +185,25 @@ public sealed class AuthFlowTests(ApiFactory factory) : IClassFixture<ApiFactory
         var response = await Client.PostAsJsonAsync("/api/auth/refresh",
             new RefreshRequest(refreshToken), Ct);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSucceededAsync(response);
         return (await response.Content.ReadFromJsonAsync<AuthTokensResponse>(Ct))!;
+    }
+
+    /// <summary>
+    /// Like EnsureSuccessStatusCode, but puts the response body in the failure message. A bare
+    /// "500 Internal Server Error" tells you nothing about which call failed or why.
+    /// </summary>
+    private static async Task EnsureSucceededAsync(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(Ct);
+        throw new InvalidOperationException(
+            $"{(int)response.StatusCode} {response.StatusCode} from "
+            + $"{response.RequestMessage?.RequestUri}: {body}");
     }
 
     private string ExtractResetToken(string email)

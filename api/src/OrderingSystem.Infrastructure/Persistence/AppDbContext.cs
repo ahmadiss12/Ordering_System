@@ -76,6 +76,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         modelBuilder.Entity<OptionGroup>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Option>().HasQueryFilter(e => !e.IsDeleted);
 
+        // The join rows must disappear with either side, or a soft-deleted item leaves links
+        // pointing at something no query can return. EF warns about exactly this: a filtered
+        // entity on the required end of a relationship whose other end is not filtered.
+        modelBuilder.Entity<MenuItemOptionGroup>().HasQueryFilter(e =>
+            !e.MenuItem.IsDeleted && !e.OptionGroup.IsDeleted);
+
         // --- private data: visible to its owner, its restaurant, or a platform admin ---
         //
         // Note what is NOT filtered here: menus, categories, options, opening hours and zone
@@ -101,5 +107,42 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         modelBuilder.Entity<RestaurantStaff>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin
             || (_tenant.RestaurantId != null && e.RestaurantId == _tenant.RestaurantId));
+
+        // --- child rows, filtered through their parent -------------------------------
+        //
+        // EF does NOT apply a parent's filter to its children. Without these, filtering Order
+        // protects "SELECT * FROM Orders" and does nothing at all for
+        // "SELECT * FROM OrderLines" - which carries the item names and prices of every
+        // restaurant on the platform. The discipline of always querying from the aggregate root
+        // works right up until somebody doesn't.
+        //
+        // Each predicate below restates its parent's rule through a navigation. They must be
+        // changed together; ChildFilterConsistencyTests fails the build if one is forgotten.
+
+        modelBuilder.Entity<OrderLine>().HasQueryFilter(e =>
+            _tenant.IsPlatformAdmin
+            || (_tenant.RestaurantId != null && e.Order.RestaurantId == _tenant.RestaurantId)
+            || (_tenant.RestaurantId == null && e.Order.CustomerId == _tenant.UserId));
+
+        modelBuilder.Entity<OrderLineOption>().HasQueryFilter(e =>
+            _tenant.IsPlatformAdmin
+            || (_tenant.RestaurantId != null && e.OrderLine.Order.RestaurantId == _tenant.RestaurantId)
+            || (_tenant.RestaurantId == null && e.OrderLine.Order.CustomerId == _tenant.UserId));
+
+        modelBuilder.Entity<OrderEvent>().HasQueryFilter(e =>
+            _tenant.IsPlatformAdmin
+            || (_tenant.RestaurantId != null && e.Order.RestaurantId == _tenant.RestaurantId)
+            || (_tenant.RestaurantId == null && e.Order.CustomerId == _tenant.UserId));
+
+        modelBuilder.Entity<Payment>().HasQueryFilter(e =>
+            _tenant.IsPlatformAdmin
+            || (_tenant.RestaurantId != null && e.Order.RestaurantId == _tenant.RestaurantId)
+            || (_tenant.RestaurantId == null && e.Order.CustomerId == _tenant.UserId));
+
+        modelBuilder.Entity<CartLine>().HasQueryFilter(e =>
+            _tenant.IsPlatformAdmin || e.Cart.UserId == _tenant.UserId);
+
+        modelBuilder.Entity<CartLineOption>().HasQueryFilter(e =>
+            _tenant.IsPlatformAdmin || e.CartLine.Cart.UserId == _tenant.UserId);
     }
 }

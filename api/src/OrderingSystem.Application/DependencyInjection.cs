@@ -14,6 +14,9 @@ public static class DependencyInjection
             ServiceLifetime.Singleton, includeInternalTypes: false);
 
         services.AddSingleton<IValidationService, ValidationService>();
+
+        // Scoped: it reads the current request's tenant, so it must not outlive the request.
+        services.AddScoped<ITenantGuard, TenantGuard>();
         services.AddScoped<AuthService>();
 
         return services;

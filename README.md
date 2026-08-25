@@ -4,8 +4,9 @@ A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle the
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 (foundation), steps 0–6 complete — toolchain, skeleton, solution, the 26
-entities, EF configuration, the initial migration and seed data. The database builds, the API
+**Status:** Phase 1 (foundation), steps 0–8 complete — toolchain, skeleton, solution, the 26
+entities, EF configuration, the initial migration, seed data, authentication and tenant
+isolation. The database builds, the API
 starts, and there are three restaurants with real menus in it.
 
 ## Documentation
