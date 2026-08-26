@@ -6,9 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using OrderingSystem.Api.IntegrationTests.Persistence;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Infrastructure.Persistence;
+using OrderingSystem.Infrastructure.Persistence.Seed;
 
 namespace OrderingSystem.Api.IntegrationTests.Auth;
 
@@ -24,7 +26,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public CapturedEmails Emails { get; } = new();
 
-    public async ValueTask InitializeAsync() => await _database.InitializeAsync();
+    public async ValueTask InitializeAsync()
+    {
+        await _database.InitializeAsync();
+
+        // Seed once, so catalog tests have three real restaurants with real menus to read rather
+        // than each building its own fixture. Auth tests are unaffected: they register throwaway
+        // accounts with random addresses.
+        await using var db = _database.CreateContext(TestTenant.PlatformAdmin());
+        await new DatabaseSeeder(db, NullLogger<DatabaseSeeder>.Instance).SeedAsync();
+    }
 
     public override async ValueTask DisposeAsync()
     {

@@ -6,9 +6,9 @@ A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle the
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 (foundation) complete — toolchain, skeleton, solution, the 26
+**Status:** Phase 1 complete. Phase 2 in progress — menu API done, Angular not started — toolchain, skeleton, solution, the 26
 entities, EF configuration, the initial migration, seed data, authentication, tenant
-isolation and CI. 64 tests pass. The database builds, the API
+isolation and CI, plus the public and staff menu APIs. 93 tests pass. The database builds, the API
 starts, and there are three restaurants with real menus in it.
 
 ## Documentation
@@ -128,7 +128,7 @@ cd api
 dotnet test OrderingSystem.slnx
 ```
 
-64 tests, one group per part of the foundation:
+93 tests:
 
 | Covers | Where | Needs Docker |
 |---|---|---|
@@ -141,7 +141,10 @@ dotnet test OrderingSystem.slnx
 | The application booting and serving | `Api.IntegrationTests/Startup` | yes |
 | Seed data and its idempotency | `Api.IntegrationTests/Seed` | yes |
 | Registration, login, rotation, reset | `Api.IntegrationTests/Auth` | yes |
-| Tenant isolation | `Api.IntegrationTests/Tenancy` | yes |
+| Tenant isolation, at the data layer | `Api.IntegrationTests/Tenancy` | yes |
+| Opening hours, including windows past midnight | `Domain.Tests/Restaurants` | no |
+| Public catalogue: browse, menu, item detail | `Api.IntegrationTests/Menu` | yes |
+| Menu editing, and 403 across restaurants | `Api.IntegrationTests/Menu` | yes |
 
 The integration tests start a real SQL Server per run through Testcontainers. The EF in-memory
 provider is deliberately not used: it enforces no unique index, no check constraint and no

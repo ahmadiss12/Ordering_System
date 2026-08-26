@@ -11,8 +11,9 @@ public sealed class SystemClock : IClock
 
     public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 
-    public DateOnly LocalToday =>
-        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, Beirut).DateTime);
+    public DateTimeOffset LocalNow => TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, Beirut);
+
+    public DateOnly LocalToday => DateOnly.FromDateTime(LocalNow.DateTime);
 
     private static TimeZoneInfo ResolveBeirut()
     {
