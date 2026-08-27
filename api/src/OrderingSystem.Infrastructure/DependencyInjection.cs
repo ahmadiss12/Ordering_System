@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Infrastructure.Email;
 using OrderingSystem.Infrastructure.Identity;
+using OrderingSystem.Infrastructure.Storage;
 using OrderingSystem.Infrastructure.Time;
 using OrderingSystem.Infrastructure.Persistence;
 using OrderingSystem.Infrastructure.Persistence.Seed;
@@ -54,6 +55,9 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        services.Configure<ImageStorageOptions>(configuration.GetSection(ImageStorageOptions.SectionName));
+        services.AddSingleton<IImageStorage, LocalImageStorage>();
 
         return services;
     }

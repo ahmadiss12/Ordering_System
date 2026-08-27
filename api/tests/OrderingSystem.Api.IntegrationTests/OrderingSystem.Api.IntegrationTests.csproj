@@ -9,6 +9,8 @@
          started in a container per test run (ADR-18). -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Testcontainers.MsSql" />
+    <!-- Used to build real images in-test rather than embedding base64 blobs. -->
+    <PackageReference Include="SixLabors.ImageSharp" />
   </ItemGroup>
 
 </Project>

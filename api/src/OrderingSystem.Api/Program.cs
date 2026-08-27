@@ -10,7 +10,10 @@ using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Application.Features.Auth;
 using OrderingSystem.Infrastructure;
 using OrderingSystem.Infrastructure.Persistence;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using OrderingSystem.Infrastructure.Persistence.Seed;
+using OrderingSystem.Infrastructure.Storage;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,6 +86,19 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Serve uploaded images from wherever the storage option points, rather than from wwwroot.
+// Scoped to that one directory: a static-file handler rooted any higher would serve appsettings.
+var imageOptions = app.Services.GetRequiredService<IOptions<ImageStorageOptions>>().Value;
+var imageRoot = Path.GetFullPath(imageOptions.RootPath);
+Directory.CreateDirectory(imageRoot);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(imageRoot),
+    RequestPath = imageOptions.PublicPath.TrimEnd('/'),
+    ServeUnknownFileTypes = false,
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

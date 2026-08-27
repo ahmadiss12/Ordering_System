@@ -42,6 +42,29 @@ public sealed class RestaurantMenuItemsController(MenuAdminService menu) : Contr
         return NoContent();
     }
 
+    /// <summary>
+    /// Uploads a photo. The file is decoded, resized, stripped of metadata and re-encoded before
+    /// anything is written — what is stored is never what arrived.
+    /// </summary>
+    [HttpPost("{id:guid}/image")]
+    [RequestSizeLimit(8 * 1024 * 1024)]
+    [ProducesResponseType<MenuItemResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<MenuItemResponse>> UploadImage(
+        Guid id, IFormFile file, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+
+        await using var content = file.OpenReadStream();
+        return Ok(await menu.SetImageAsync(id, content, ct));
+    }
+
+    [HttpDelete("{id:guid}/image")]
+    [ProducesResponseType<MenuItemResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<MenuItemResponse>> RemoveImage(Guid id, CancellationToken ct) =>
+        Ok(await menu.RemoveImageAsync(id, ct));
+
     [HttpPut("{id:guid}/option-groups")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

@@ -42,6 +42,18 @@
     <PackageVersion Include="MailKit" Version="4.16.0" />
   </ItemGroup>
 
+  <!-- Image decoding, resizing and re-encoding.
+       Licence, stated plainly because we have been bitten three times already: ImageSharp uses
+       the Six Labors Split License. It is Apache 2.0 for a for-profit business under 1M USD
+       annual revenue, and needs a paid commercial licence above that. Unlike AutoMapper, MediatR
+       and FluentAssertions - which cost money at any commercial scale - this one is genuinely
+       free at our size, and the trigger is a revenue figure worth celebrating.
+       If that day comes, SkiaSharp is the MIT alternative; it needs native assets, which is the
+       reason it is not the default here. -->
+  <ItemGroup>
+    <PackageVersion Include="SixLabors.ImageSharp" Version="4.1.0" />
+  </ItemGroup>
+
   <!-- Logging and API documentation -->
   <ItemGroup>
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />

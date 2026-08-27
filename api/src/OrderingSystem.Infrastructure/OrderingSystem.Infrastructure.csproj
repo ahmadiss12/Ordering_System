@@ -13,6 +13,7 @@
     <!-- Taken for IPasswordHasher<T> only; the full Identity stack is not used (ADR-10). -->
     <PackageReference Include="Microsoft.Extensions.Identity.Core" />
     <PackageReference Include="MailKit" />
+    <PackageReference Include="SixLabors.ImageSharp" />
   </ItemGroup>
 
 </Project>

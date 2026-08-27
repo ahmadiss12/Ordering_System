@@ -18,7 +18,8 @@ namespace OrderingSystem.Application.Features.Menu;
 /// edit, which is exactly why it is called on every single write rather than trusted to a filter.
 /// </para>
 /// </summary>
-public sealed class MenuAdminService(IAppDbContext db, ITenantGuard guard, IValidationService validation, IClock clock)
+public sealed class MenuAdminService(
+    IAppDbContext db, ITenantGuard guard, IValidationService validation, IClock clock, IImageStorage images)
 {
     // ------------------------------------------------------------------ categories
 
@@ -160,6 +161,45 @@ public sealed class MenuAdminService(IAppDbContext db, ITenantGuard guard, IVali
         // customer actually bought.
         item.IsDeleted = true;
         await db.SaveChangesAsync(ct);
+    }
+
+    // ------------------------------------------------------------------ images
+
+    /// <summary>
+    /// Replaces an item's photo. The previous file is removed only after the new one is safely
+    /// stored, so a failed upload leaves the old picture in place rather than none at all.
+    /// </summary>
+    public async Task<MenuItemResponse> SetImageAsync(
+        Guid id, Stream content, CancellationToken ct = default)
+    {
+        var item = await LoadOwnedItemAsync(id, ct);
+        var previous = item.ImageUrl;
+
+        item.ImageUrl = await images.SaveAsync(content, ct);
+        await db.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrEmpty(previous))
+        {
+            await images.DeleteAsync(previous, ct);
+        }
+
+        return ToResponse(item);
+    }
+
+    public async Task<MenuItemResponse> RemoveImageAsync(Guid id, CancellationToken ct = default)
+    {
+        var item = await LoadOwnedItemAsync(id, ct);
+        var previous = item.ImageUrl;
+
+        item.ImageUrl = null;
+        await db.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrEmpty(previous))
+        {
+            await images.DeleteAsync(previous, ct);
+        }
+
+        return ToResponse(item);
     }
 
     // ------------------------------------------------------------------ option groups
