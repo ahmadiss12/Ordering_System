@@ -6,9 +6,11 @@ A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle the
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 complete. Phase 2 in progress — menu API done, Angular not started — toolchain, skeleton, solution, the 26
+**Status:** Phase 1 complete. Phase 2 in progress — menu API and image upload done, Angular
+workspace scaffolded and talking to the API — toolchain, skeleton, solution, the 26
 entities, EF configuration, the initial migration, seed data, authentication, tenant
-isolation and CI, plus the public and staff menu APIs. 93 tests pass. The database builds, the API
+isolation and CI, plus the public and staff menu APIs with image upload. 99 backend tests
+and 2 frontend tests pass. The database builds, the API
 starts, and there are three restaurants with real menus in it.
 
 ## Documentation
@@ -32,7 +34,7 @@ starts, and there are three restaurants with real menus in it.
 
 - .NET SDK 10.0.100 or later (pinned in `global.json`)
 - Docker, for SQL Server and the development mail catcher
-- Node 22+ (from Phase 2 onward)
+- Node 24.20.0 or later (pinned in `web/.nvmrc`) — Angular refuses to run on an older one
 
 Solution files use the `.slnx` format, which needs Visual Studio 2022 17.14+, Rider 2025.1+,
 or the `dotnet` CLI. Any editor works via the CLI.
@@ -73,7 +75,7 @@ caught there instead of reaching a real inbox.
 ```
 .github/      CI: build, test, and a dependency-advisory scan
 api/          ASP.NET Core solution (Domain / Application / Infrastructure / Api + tests)
-web/          Angular workspace                          — Phase 2
+web/          Angular workspace: dashboard, storefront, 3 shared libraries
 mobile/       React Native app                           — Phase 5
 docker/       SQL Server and Mailpit for local development
 docs/         Architecture and domain model
