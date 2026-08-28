@@ -43,15 +43,20 @@
   </ItemGroup>
 
   <!-- Image decoding, resizing and re-encoding.
+
        Licence, stated plainly because we have been bitten three times already: ImageSharp uses
        the Six Labors Split License. It is Apache 2.0 for a for-profit business under 1M USD
        annual revenue, and needs a paid commercial licence above that. Unlike AutoMapper, MediatR
-       and FluentAssertions - which cost money at any commercial scale - this one is genuinely
-       free at our size, and the trigger is a revenue figure worth celebrating.
-       If that day comes, SkiaSharp is the MIT alternative; it needs native assets, which is the
-       reason it is not the default here. -->
+       and FluentAssertions - which cost money at any commercial scale - this one is free at our
+       size, and its trigger is a revenue figure worth celebrating.
+
+       Pinned to 3.x deliberately. Version 4 added a build-time licence-key check that warns on
+       every single build unless a key is supplied, even under the free tier. 3.1.x carries the
+       same licence terms with no key demanded, so it stays here until either that changes or
+       the revenue threshold is crossed. SkiaSharp is the MIT alternative if neither holds; it
+       needs native assets, which is why it is not the default. -->
   <ItemGroup>
-    <PackageVersion Include="SixLabors.ImageSharp" Version="4.1.0" />
+    <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
 
   <!-- Logging and API documentation -->
@@ -60,6 +65,10 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.16.19" />
+    <!-- Emits the OpenAPI document during build, so generating the TypeScript client needs
+         neither a running API nor a database. That is what lets CI check the committed client
+         is current without standing the whole stack up. -->
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.11" />
   </ItemGroup>
 
   <!-- Testing. Shouldly rather than FluentAssertions: v8+ of the latter

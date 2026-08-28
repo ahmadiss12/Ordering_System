@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using OrderingSystem.Api.Auth;
 using OrderingSystem.Api.Middleware;
+using OrderingSystem.Api.OpenApi;
 using OrderingSystem.Application;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Application.Features.Auth;
@@ -19,7 +20,7 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddOperationTransformer<OperationIdTransformer>());
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
@@ -107,7 +108,7 @@ app.MapControllers();
 
 // Liveness probe. Kept trivial on purpose: it must not touch the database,
 // or a slow query will report the whole API as down.
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok" })).WithTags("Health");
 
 await app.RunAsync();
 

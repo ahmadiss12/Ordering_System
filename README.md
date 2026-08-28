@@ -6,8 +6,8 @@ A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle the
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 complete. Phase 2 in progress — menu API and image upload done, Angular
-workspace scaffolded and talking to the API — toolchain, skeleton, solution, the 26
+**Status:** Phase 1 complete. Phase 2 in progress — menu API, image upload, Angular workspace,
+and a TypeScript client generated from the API's own OpenAPI document — toolchain, skeleton, solution, the 26
 entities, EF configuration, the initial migration, seed data, authentication, tenant
 isolation and CI, plus the public and staff menu APIs with image upload. 99 backend tests
 and 2 frontend tests pass. The database builds, the API
@@ -155,3 +155,16 @@ concurrency token, so those tests would pass whether the code was right or wrong
 CI runs the same commands on every push, plus `dotnet list package --vulnerable`, which is how a
 newly disclosed advisory in a package we already depend on becomes visible rather than waiting
 for someone to notice.
+
+## The generated API client
+
+`web/projects/shared/api-client/src/lib/api-client.ts` is generated, not written. Regenerate it
+after any change to the API surface:
+
+```bash
+./scripts/generate-api-client.sh          # or scripts\generate-api-client.ps1 on Windows
+```
+
+It needs neither a running API nor a database — the OpenAPI document is produced by building the
+project. CI runs the same script and fails if the committed copy has drifted, so a forgotten
+regeneration is caught in review rather than as an `undefined` in front of a user.

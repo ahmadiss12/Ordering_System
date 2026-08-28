@@ -1,5 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <PropertyGroup>
+    <!--
+      Writes api/openapi/OrderingSystem.Api.json, which is committed so a change to the API
+      surface shows up as a reviewable diff rather than as a surprise in a client somewhere.
+
+      Off during a normal build, on when scripts/generate-api-client.sh asks for it. The
+      generator boots the real host to read its routes, and this application refuses to boot
+      without a signing key and a connection string. That refusal is worth keeping, so the
+      script supplies build-only placeholders instead of the check being weakened. Leaving
+      generation on would make every developer's build depend on those variables.
+
+      Both properties are set to false explicitly first: the package defaults them to true when
+      left unset, so a condition on its own would quietly leave generation enabled.
+    -->
+    <OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
+    <OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiGenerateDocuments Condition=" '$(GenerateOpenApiDocument)' == 'true' ">true</OpenApiGenerateDocuments>
+    <OpenApiGenerateDocumentsOnBuild Condition=" '$(GenerateOpenApiDocument)' == 'true' ">true</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)../../openapi</OpenApiDocumentsDirectory>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\OrderingSystem.Application\OrderingSystem.Application.csproj" />
     <!-- Infrastructure is referenced for dependency-injection registration only.
@@ -11,6 +32,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 

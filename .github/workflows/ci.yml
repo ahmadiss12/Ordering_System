@@ -149,3 +149,34 @@ jobs:
 
       - name: Test
         run: npx ng test dashboard --watch=false
+
+  contract:
+    name: API client is current
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Regenerates the OpenAPI document and the TypeScript client from the API as it stands on
+      # this commit, then checks the committed copies match.
+      #
+      # Without this, changing an endpoint and forgetting to regenerate leaves the Angular apps
+      # compiling happily against a contract the server no longer honours - and the first sign
+      # is an `undefined` in front of a user. ADR-14 chose a generated client precisely so that
+      # mismatch becomes a build failure; this is the step that makes that true.
+      - name: Regenerate the API client
+        run: ./scripts/generate-api-client.sh
+
+      - name: Fail if the committed client is stale
+        run: |
+          if ! git diff --exit-code -- api/openapi web/projects/shared/api-client/src/lib; then
+            echo "::error::The API surface changed but the generated client was not regenerated."
+            echo "::error::Run scripts/generate-api-client.sh (or .ps1) and commit the result."
+            exit 1
+          fi
+          echo "Generated client matches the API."

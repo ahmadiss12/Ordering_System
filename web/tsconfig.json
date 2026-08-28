@@ -3,10 +3,14 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    // Point at library sources rather than at dist. The default mapping requires every
+    // library to be built before any app will compile, which means a change in a library is
+    // invisible until you remember to rebuild it. Mapping to source removes that ordering
+    // entirely; `ng build <lib>` is still what produces a publishable package.
     "paths": {
-      "api-client": ["./dist/api-client"],
-      "auth": ["./dist/auth"],
-      "ui": ["./dist/ui"]
+      "api-client": ["./projects/shared/api-client/src/public-api.ts"],
+      "auth": ["./projects/shared/auth/src/public-api.ts"],
+      "ui": ["./projects/shared/ui/src/public-api.ts"]
     },
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
