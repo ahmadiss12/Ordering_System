@@ -171,6 +171,86 @@ public sealed class MenuAdminTests(ApiFactory factory) : IClassFixture<ApiFactor
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    // ------------------------------------------------------------------ the editor's reads
+
+    [Fact]
+    public async Task Staff_see_every_item_on_their_menu_including_the_unavailable_ones()
+    {
+        var client = await SignInAsync("staff@frieslab.test");
+        var itemId = await OwnItemIdAsync();
+
+        // Take one off the menu, the way someone would when the kitchen runs out.
+        var hidden = await client.PatchAsJsonAsync(
+            $"/api/restaurant/menu-items/{itemId}/availability", new SetAvailabilityRequest(false), Ct);
+        hidden.EnsureSuccessStatusCode();
+
+        var items = await client.GetFromJsonAsync<IReadOnlyList<MenuItemResponse>>(
+            "/api/restaurant/menu-items", Ct);
+
+        // It has to still be listed. The person who has to switch it back on is looking at this
+        // list, and a list that hides it offers no way back.
+        var row = items!.SingleOrDefault(i => i.Id == itemId);
+        row.ShouldNotBeNull();
+        row.IsAvailable.ShouldBeFalse();
+
+        // Put it back, so the ordering of tests against the shared seed cannot matter.
+        await client.PatchAsJsonAsync(
+            $"/api/restaurant/menu-items/{itemId}/availability", new SetAvailabilityRequest(true), Ct);
+    }
+
+    [Fact]
+    public async Task The_item_list_stops_at_the_edge_of_the_restaurant()
+    {
+        var client = await SignInAsync("staff@frieslab.test");
+
+        var items = await client.GetFromJsonAsync<IReadOnlyList<MenuItemResponse>>(
+            "/api/restaurant/menu-items", Ct);
+
+        var foreignId = await ForeignItemIdAsync();
+        items!.ShouldNotBeEmpty();
+        items.Select(i => i.Id).ShouldNotContain(foreignId, "that item belongs to another restaurant");
+    }
+
+    [Fact]
+    public async Task Attached_groups_come_back_with_the_override_left_unresolved()
+    {
+        var client = await SignInAsync("staff@frieslab.test");
+        var itemId = await OwnItemIdAsync();
+
+        var groupId = await OwnOptionGroupIdAsync();
+        var attached = await client.PutAsJsonAsync($"/api/restaurant/menu-items/{itemId}/option-groups",
+            new AttachOptionGroupRequest(groupId, SortOrder: 0, MinSelectOverride: 1, MaxSelectOverride: null), Ct);
+        attached.EnsureSuccessStatusCode();
+
+        var groups = await client.GetFromJsonAsync<IReadOnlyList<AttachedOptionGroupResponse>>(
+            $"/api/restaurant/menu-items/{itemId}/option-groups", Ct);
+
+        var link = groups!.Single(g => g.OptionGroupId == groupId);
+
+        // Both forms, and they must be distinguishable. The editor shows "overridden for this
+        // item" for the minimum and "inherited from the group" for the maximum, and it can only
+        // tell them apart because the nulls survived the trip.
+        link.MinSelectOverride.ShouldBe(1);
+        link.MaxSelectOverride.ShouldBeNull();
+        link.EffectiveMinSelect.ShouldBe(1);
+
+        await client.DeleteAsync($"/api/restaurant/menu-items/{itemId}/option-groups/{groupId}", Ct);
+    }
+
+    [Fact]
+    public async Task Reading_another_restaurants_attached_groups_is_refused()
+    {
+        var client = await SignInAsync("staff@frieslab.test");
+        var foreignItemId = await ForeignItemIdAsync();
+
+        var response = await client.GetAsync(
+            $"/api/restaurant/menu-items/{foreignItemId}/option-groups", Ct);
+
+        // A read, but reading it would expose another restaurant's option pricing, so the guard
+        // applies here exactly as it does to a write.
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private async Task<HttpClient> SignInAsync(string email)
@@ -211,6 +291,14 @@ public sealed class MenuAdminTests(ApiFactory factory) : IClassFixture<ApiFactor
         return await db.Categories
             .Where(c => c.Restaurant.Slug == "beirut-mezze-house")
             .Select(c => c.Id).FirstAsync(Ct);
+    }
+
+    private async Task<Guid> OwnOptionGroupIdAsync()
+    {
+        await using var db = factory.CreateDbContext(TestTenant.PlatformAdmin());
+        return await db.OptionGroups
+            .Where(g => g.Restaurant.Slug == "frieslab")
+            .Select(g => g.Id).FirstAsync(Ct);
     }
 
     private async Task<Guid> ForeignOptionGroupIdAsync()

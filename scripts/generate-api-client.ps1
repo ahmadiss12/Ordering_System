@@ -19,6 +19,13 @@ Write-Host '==> Building the API and emitting its OpenAPI document' -ForegroundC
 dotnet build (Join-Path $root 'api/src/OrderingSystem.Api') --nologo -p:GenerateOpenApiDocument=true
 
 Write-Host '==> Generating the TypeScript client' -ForegroundColor Cyan
+
+# The global tool shim lands here, but putting it on PATH is left to the shell profile - so a
+# fresh session installs the tool and then cannot find it. Do it ourselves rather than depending
+# on how the machine happens to be set up.
+$toolPath = if ($env:DOTNET_TOOLS_PATH) { $env:DOTNET_TOOLS_PATH } else { Join-Path $HOME '.dotnet/tools' }
+$env:PATH = "$toolPath$([IO.Path]::PathSeparator)$env:PATH"
+
 if (-not (Get-Command nswag -ErrorAction SilentlyContinue)) {
     Write-Host '    installing NSwag...' -ForegroundColor DarkGray
     dotnet tool install --global NSwag.ConsoleCore --version 14.7.0

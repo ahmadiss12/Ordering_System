@@ -20,6 +20,12 @@ echo "==> Building the API and emitting its OpenAPI document"
 dotnet build "$root/api/src/OrderingSystem.Api" --nologo -p:GenerateOpenApiDocument=true
 
 echo "==> Generating the TypeScript client"
+
+# `dotnet tool install --global` drops the shim in here, but adding it to PATH is left to the
+# shell profile — so a fresh shell installs the tool and then cannot find it. Put it on PATH
+# ourselves rather than depending on how the machine happens to be set up.
+export PATH="${DOTNET_TOOLS_PATH:-$HOME/.dotnet/tools}:$PATH"
+
 if ! command -v nswag >/dev/null 2>&1; then
   echo "    installing NSwag..."
   dotnet tool install --global NSwag.ConsoleCore --version 14.7.0

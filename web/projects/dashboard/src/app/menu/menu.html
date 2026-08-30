@@ -1,0 +1,149 @@
+<header class="intro">
+  <div>
+    <h1>Menu</h1>
+    <p>Sections, and the items customers order from them.</p>
+  </div>
+  <button matButton="filled" [disabled]="store.saving()" (click)="addSection()">
+    <mat-icon>add</mat-icon>
+    Add section
+  </button>
+</header>
+
+@if (store.saving()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (store.error(); as message) {
+  <mat-card appearance="outlined" class="error">
+    <mat-card-content>
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ message }}</span>
+    </mat-card-content>
+  </mat-card>
+}
+
+@if (store.loading()) {
+  <mat-progress-bar mode="indeterminate" />
+} @else if (store.isEmpty()) {
+  <mat-card appearance="outlined" class="empty">
+    <mat-card-content>
+      <mat-icon>restaurant_menu</mat-icon>
+      <h2>This menu is empty</h2>
+      <p>Start with a section — "Burgers", "Sides", "Drinks" — then add items to it.</p>
+      <button matButton="filled" (click)="addSection()">Add the first section</button>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <div class="sections">
+    @for (section of store.sections(); track section.category.id; let i = $index) {
+      <mat-card
+        appearance="outlined"
+        class="section"
+        [class.hidden-section]="!section.category.isActive"
+      >
+        <div class="section-head">
+          <div class="section-title">
+            <h2>{{ section.category.name }}</h2>
+            <p>
+              {{ section.items.length }}
+              {{ section.items.length === 1 ? 'item' : 'items' }}
+              @if (!section.category.isActive) {
+                <span class="badge">Hidden from customers</span>
+              }
+            </p>
+          </div>
+
+          <div class="section-actions">
+            <button
+              matIconButton
+              matTooltip="Move up"
+              aria-label="Move section up"
+              [disabled]="isFirst(i) || store.saving()"
+              (click)="move(section.category, -1)"
+            >
+              <mat-icon>arrow_upward</mat-icon>
+            </button>
+            <button
+              matIconButton
+              matTooltip="Move down"
+              aria-label="Move section down"
+              [disabled]="isLast(i) || store.saving()"
+              (click)="move(section.category, 1)"
+            >
+              <mat-icon>arrow_downward</mat-icon>
+            </button>
+
+            <mat-slide-toggle
+              [checked]="section.category.isActive"
+              [disabled]="store.saving()"
+              [matTooltip]="
+                section.category.isActive ? 'Visible to customers' : 'Hidden from customers'
+              "
+              (change)="toggleSection(section.category, $event.checked)"
+            />
+
+            <button matIconButton [matMenuTriggerFor]="sectionMenu" aria-label="Section options">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #sectionMenu="matMenu">
+              <button mat-menu-item (click)="renameSection(section.category)">
+                <mat-icon>edit</mat-icon>
+                <span>Rename</span>
+              </button>
+            </mat-menu>
+          </div>
+        </div>
+
+        <mat-divider />
+
+        <mat-card-content>
+          @if (section.items.length === 0) {
+            <p class="no-items">Nothing in this section yet.</p>
+          } @else {
+            <ul class="items">
+              @for (item of section.items; track item.id) {
+                <li class="item" [class.unavailable]="!item.isAvailable">
+                  <div class="item-main">
+                    <span class="item-name">{{ item.name }}</span>
+                    @if (item.description) {
+                      <span class="item-description">{{ item.description }}</span>
+                    }
+                  </div>
+                  <div class="item-meta">
+                    @if (!item.isAvailable) {
+                      <span class="badge">Sold out</span>
+                    }
+                    <span class="item-price">{{ item.basePriceUsd | currency: 'USD' }}</span>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+
+  @if (store.orphanedItems().length > 0) {
+    <!-- Items whose section is gone. Without this they would simply not be drawn, and someone
+         would be left wondering where a dish went. -->
+    <mat-card appearance="outlined" class="orphans">
+      <mat-card-header>
+        <mat-card-title>Not in any section</mat-card-title>
+        <mat-card-subtitle>
+          These items exist but their section is missing, so customers cannot reach them.
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <ul class="items">
+          @for (item of store.orphanedItems(); track item.id) {
+            <li class="item">
+              <span class="item-name">{{ item.name }}</span>
+              <span class="item-price">{{ item.basePriceUsd | currency: 'USD' }}</span>
+            </li>
+          }
+        </ul>
+      </mat-card-content>
+    </mat-card>
+  }
+}

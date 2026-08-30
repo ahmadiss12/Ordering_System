@@ -75,6 +75,57 @@ public sealed class MenuAdminService(
 
     // ------------------------------------------------------------------ menu items
 
+    /// <summary>
+    /// Every item on this restaurant's menu, including the ones a customer cannot currently see.
+    /// <para>
+    /// That last part is the whole point of it not being the public projection: an item is hidden
+    /// from customers by <c>IsAvailable</c>, and the person who has to switch it back on is
+    /// looking at this list. Soft-deleted rows are still excluded, by the global query filter.
+    /// </para>
+    /// </summary>
+    public async Task<IReadOnlyList<MenuItemResponse>> ListMenuItemsAsync(CancellationToken ct = default)
+    {
+        var restaurantId = guard.RequireRestaurantId();
+
+        return await db.MenuItems.AsNoTracking()
+            .Where(i => i.RestaurantId == restaurantId)
+            .OrderBy(i => i.SortOrder).ThenBy(i => i.Name)
+            .Select(i => new MenuItemResponse(
+                i.Id, i.CategoryId, i.Name, i.Description,
+                i.BasePriceUsd, i.ImageUrl, i.IsAvailable, i.SortOrder))
+            .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// The groups attached to one item, with the overrides left unresolved — see
+    /// <see cref="AttachedOptionGroupResponse"/> for why the editor needs both forms.
+    /// </summary>
+    public async Task<IReadOnlyList<AttachedOptionGroupResponse>> ListItemOptionGroupsAsync(
+        Guid menuItemId, CancellationToken ct = default)
+    {
+        // Ownership is checked before returning anything: this is a read, but reading another
+        // restaurant's option pricing is exactly the leak the guard exists to stop.
+        await LoadOwnedItemAsync(menuItemId, ct);
+
+        return await db.MenuItemOptionGroups.AsNoTracking()
+            .Where(link => link.MenuItemId == menuItemId)
+            .OrderBy(link => link.SortOrder)
+            .Select(link => new AttachedOptionGroupResponse(
+                link.OptionGroup.Id,
+                link.OptionGroup.Name,
+                link.SortOrder,
+                link.MinSelectOverride,
+                link.MaxSelectOverride,
+                link.MinSelectOverride ?? link.OptionGroup.MinSelect,
+                link.MaxSelectOverride ?? link.OptionGroup.MaxSelect,
+                link.OptionGroup.Options
+                    .OrderBy(o => o.SortOrder)
+                    .Select(o => new OptionResponse(
+                        o.Id, o.Name, o.PriceDeltaUsd, o.MaxQuantity, o.IsAvailable, o.SortOrder))
+                    .ToList()))
+            .ToListAsync(ct);
+    }
+
     public async Task<MenuItemResponse> CreateMenuItemAsync(
         CreateMenuItemRequest request, CancellationToken ct = default)
     {

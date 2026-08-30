@@ -10,6 +10,23 @@ namespace OrderingSystem.Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.RestaurantStaff)]
 public sealed class RestaurantMenuItemsController(MenuAdminService menu) : ControllerBase
 {
+    /// <summary>
+    /// The whole menu as staff see it, unavailable items included — the list the editor is built
+    /// on. The public projection cannot serve here: it is keyed by slug and drops inactive
+    /// categories, which are precisely the ones somebody needs to find in order to bring back.
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<MenuItemResponse>>> List(CancellationToken ct) =>
+        Ok(await menu.ListMenuItemsAsync(ct));
+
+    [HttpGet("{id:guid}/option-groups")]
+    [ProducesResponseType<IReadOnlyList<AttachedOptionGroupResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<AttachedOptionGroupResponse>>> ListOptionGroups(
+        Guid id, CancellationToken ct) =>
+        Ok(await menu.ListItemOptionGroupsAsync(id, ct));
+
     [HttpPost]
     [ProducesResponseType<MenuItemResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
