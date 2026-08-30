@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using OrderingSystem.Domain.Enums;
 
 namespace OrderingSystem.Domain.Tests.Architecture;
 
@@ -78,6 +80,33 @@ public class RepositoryConventionTests
         using var document = JsonDocument.Parse(appsettings);
         document.RootElement.GetProperty("Jwt").GetProperty("SigningKey").GetString()
             .ShouldBeEmpty("a committed signing key is a signing key everyone has");
+    }
+
+    [Fact]
+    public void The_web_role_names_match_the_RoleType_enum()
+    {
+        // The token issuer serialises roles with nameof(RoleType.X), and the browser reads those
+        // strings to decide which navigation to draw. Nothing in the OpenAPI document carries the
+        // enum, so the contract job cannot catch a rename here — this test is the only thing that
+        // does. Without it, renaming a member leaves the dashboard silently drawing an empty menu
+        // for every owner.
+        var rolesTs = File.ReadAllText(RepoFile(Path.Combine(
+            "web", "projects", "shared", "auth", "src", "lib", "roles.ts")));
+
+        foreach (var name in Enum.GetNames<RoleType>())
+        {
+            rolesTs.ShouldContain($"{name}: '{name}'", Case.Sensitive,
+                $"web/.../auth/src/lib/roles.ts must list {name}; update it to match RoleType");
+        }
+
+        // The reverse direction: a name in roles.ts that no longer exists in the enum would let a
+        // guard ask for a role the server can never issue, locking people out of a working page.
+        var declared = Regex.Matches(rolesTs, @"^\s{2}(\w+): '(\w+)',$", RegexOptions.Multiline)
+            .Select(m => m.Groups[1].Value)
+            .ToArray();
+
+        declared.ShouldBe(Enum.GetNames<RoleType>(), ignoreOrder: true,
+            "roles.ts and RoleType must describe exactly the same set of roles");
     }
 
     private static string RepoFile(string relativePath) =>

@@ -1,0 +1,49 @@
+.intro {
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font: var(--mat-sys-headline-medium);
+  }
+
+  p {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
+  gap: 1.25rem;
+}
+
+.description {
+  min-height: 2.8em;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error {
+  border-color: var(--mat-sys-error);
+  color: var(--mat-sys-error);
+}
+
+.empty mat-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 2rem;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  p {
+    margin: 0;
+  }
+}

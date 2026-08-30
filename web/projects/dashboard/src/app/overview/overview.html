@@ -1,0 +1,52 @@
+<header class="intro">
+  <h1>Overview</h1>
+  @if (isScoped()) {
+    <p>The restaurant this account manages.</p>
+  } @else {
+    <p>Every restaurant on the platform.</p>
+  }
+</header>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+} @else if (error()) {
+  <mat-card appearance="outlined" class="error">
+    <mat-card-content>{{ error() }}</mat-card-content>
+  </mat-card>
+} @else if (restaurants().length === 0) {
+  <mat-card appearance="outlined" class="empty">
+    <mat-card-content>
+      <mat-icon>storefront</mat-icon>
+      <p>This account is not linked to a restaurant yet.</p>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <div class="grid">
+    @for (r of restaurants(); track r.id) {
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>{{ r.name }}</mat-card-title>
+          <mat-card-subtitle>/{{ r.slug }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="description">{{ r.description }}</p>
+          <mat-chip-set>
+            <mat-chip [highlighted]="r.isOpenNow">
+              {{ r.isOpenNow ? 'Open now' : 'Closed' }}
+            </mat-chip>
+            <mat-chip>Min ${{ r.minOrderUsd }}</mat-chip>
+            <mat-chip>{{ r.defaultPrepMinutes }} min prep</mat-chip>
+          </mat-chip-set>
+        </mat-card-content>
+        @if (isScoped()) {
+          <mat-card-actions>
+            <a matButton routerLink="/menu">
+              <mat-icon>restaurant_menu</mat-icon>
+              Edit menu
+            </a>
+          </mat-card-actions>
+        }
+      </mat-card>
+    }
+  </div>
+}

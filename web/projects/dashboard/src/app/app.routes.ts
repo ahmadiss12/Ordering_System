@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { anonymousOnlyGuard, authGuard } from 'auth';
+import { NAV, navChild } from './shell/navigation';
 
 export const routes: Routes = [
   {
@@ -8,15 +9,23 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/login').then((m) => m.Login),
   },
   {
-    // No guard: this is where roleGuard sends a signed-in user who lacks the role. Guarding it
-    // with authGuard as well would be a redirect loop waiting to happen.
-    path: 'forbidden',
-    loadComponent: () => import('./auth/forbidden').then((m) => m.Forbidden),
-  },
-  {
+    // Everything signed-in lives inside the shell, so the toolbar and navigation are laid out
+    // once rather than repeated by each screen.
     path: '',
     canActivate: [authGuard],
-    loadComponent: () => import('./home/home').then((m) => m.Home),
+    loadComponent: () => import('./shell/shell').then((m) => m.Shell),
+    children: [
+      navChild(NAV.overview, () => import('./overview/overview').then((m) => m.Overview)),
+      navChild(NAV.menu, () => import('./menu/menu').then((m) => m.Menu)),
+      navChild(NAV.settings, () => import('./settings/settings').then((m) => m.Settings)),
+      {
+        // Where roleGuard sends a signed-in user who lacks the role. Inside the shell, so they
+        // keep the navigation and can go somewhere they are allowed; a bare page would strand
+        // them. It carries no roleGuard of its own, which would be a loop.
+        path: 'forbidden',
+        loadComponent: () => import('./auth/forbidden').then((m) => m.Forbidden),
+      },
+      { path: '**', redirectTo: '' },
+    ],
   },
-  { path: '**', redirectTo: '' },
 ];

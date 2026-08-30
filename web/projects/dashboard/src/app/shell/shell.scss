@@ -1,0 +1,99 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  // Material 3 ignores color="primary" on a toolbar, so the surface comes from the theme's
+  // own tokens rather than an attribute that silently does nothing.
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+
+  // Above the drawer, so the overlay sidenav on a phone slides out beneath the toolbar
+  // rather than over the sign-out button.
+  position: relative;
+  z-index: 2;
+  gap: 0.5rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: var(--mat-sys-title-medium);
+}
+
+// The product name is the first thing to go when the toolbar runs out of room; the icon
+// alone still identifies the app.
+@media (max-width: 26rem) {
+  .brand-name {
+    display: none;
+  }
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--mat-sys-on-primary);
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-large);
+}
+
+.account {
+  height: auto;
+  padding-block: 0.5rem;
+  line-height: 1.4;
+}
+
+.account-email {
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface);
+}
+
+.account-roles {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.body {
+  flex: 1 1 auto;
+  // Without an explicit minimum the flex item refuses to shrink and the page grows a second
+  // scrollbar inside the first.
+  min-height: 0;
+  background: var(--mat-sys-surface);
+}
+
+.drawer {
+  width: 15rem;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+}
+
+// The active section, marked by routerLinkActive rather than MatListItem's `activated` input:
+// reading the directive's isActive from a binding on the same element does not re-evaluate
+// under zoneless change detection, so the highlight silently never appeared.
+.nav-active {
+  background: var(--mat-sys-secondary-container);
+
+  .mdc-list-item__primary-text,
+  mat-icon {
+    color: var(--mat-sys-on-secondary-container);
+  }
+}
+
+.content {
+  padding: 1.5rem;
+}
+
+@media (max-width: 48rem) {
+  .content {
+    padding: 1rem;
+  }
+}

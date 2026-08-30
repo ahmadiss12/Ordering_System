@@ -1,0 +1,64 @@
+<mat-toolbar class="topbar">
+  @if (isCompact()) {
+    <button matIconButton (click)="toggleDrawer()" aria-label="Open navigation">
+      <mat-icon>menu</mat-icon>
+    </button>
+  }
+
+  <span class="brand">
+    <mat-icon>restaurant</mat-icon>
+    <span class="brand-name">Ordering System</span>
+  </span>
+
+  <span class="spacer"></span>
+
+  <button
+    matIconButton
+    [matMenuTriggerFor]="accountMenu"
+    [matTooltip]="session.email() ?? ''"
+    aria-label="Account"
+  >
+    <span class="avatar">{{ initial() }}</span>
+  </button>
+
+  <mat-menu #accountMenu="matMenu" xPosition="before">
+    <div class="account" mat-menu-item disabled>
+      <div class="account-email">{{ session.email() }}</div>
+      <div class="account-roles">{{ session.roles().join(', ') || 'No role' }}</div>
+    </div>
+    <mat-divider />
+    <button mat-menu-item (click)="signOut()">
+      <mat-icon>logout</mat-icon>
+      <span>Sign out</span>
+    </button>
+  </mat-menu>
+</mat-toolbar>
+
+<mat-sidenav-container class="body">
+  <mat-sidenav
+    class="drawer"
+    [mode]="isCompact() ? 'over' : 'side'"
+    [opened]="isCompact() ? drawerOpen() : true"
+    (closedStart)="drawerOpen.set(false)"
+  >
+    <mat-nav-list>
+      @for (section of sections(); track section.path) {
+        <a
+          mat-list-item
+          [routerLink]="'/' + section.path"
+          routerLinkActive="nav-active"
+          [routerLinkActiveOptions]="{ exact: section.path === '' }"
+          [ariaCurrentWhenActive]="'page'"
+          (click)="onNavigate()"
+        >
+          <mat-icon matListItemIcon>{{ section.icon }}</mat-icon>
+          <span matListItemTitle>{{ section.label }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content">
+    <router-outlet />
+  </mat-sidenav-content>
+</mat-sidenav-container>
