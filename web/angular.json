@@ -29,9 +29,7 @@
                 "input": "projects/dashboard/public"
               }
             ],
-            "styles": [
-              "projects/dashboard/src/styles.scss"
-            ]
+            "styles": ["projects/dashboard/src/styles.scss"]
           },
           "configurations": {
             "production": {
@@ -100,9 +98,7 @@
                 "input": "projects/storefront/public"
               }
             ],
-            "styles": [
-              "projects/storefront/src/styles.scss"
-            ]
+            "styles": ["projects/storefront/src/styles.scss"]
           },
           "configurations": {
             "production": {
@@ -140,7 +136,8 @@
           },
           "defaultConfiguration": "development",
           "options": {
-            "proxyConfig": "proxy.conf.json"
+            "proxyConfig": "proxy.conf.json",
+            "port": 4201
           }
         },
         "test": {

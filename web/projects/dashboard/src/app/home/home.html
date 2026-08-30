@@ -2,16 +2,25 @@
   <mat-icon>restaurant</mat-icon>
   <span class="brand">Ordering System</span>
   <span class="spacer"></span>
-  <span class="env">dashboard · development</span>
+  <span class="env">{{ session.email() }}</span>
+  <button matIconButton aria-label="Sign out" (click)="signOut()">
+    <mat-icon>logout</mat-icon>
+  </button>
 </mat-toolbar>
 
 <main>
   <header class="intro">
-    <h1>Connected</h1>
+    <h1>Signed in</h1>
     <p>
-      Angular is serving, the dev proxy is reaching the API, and these restaurants came out of
-      SQL Server. Everything below is live data, not a placeholder.
+      Every request from this page carries an access token. When it expires the interceptor renews
+      it and replays the request, so nothing here has to think about tokens.
     </p>
+    @if (session.restaurantId()) {
+      <p class="scope">
+        Scoped to one restaurant — the <code>restaurant_id</code> claim in the token is what every
+        query filter on the server reads.
+      </p>
+    }
   </header>
 
   @if (loading()) {

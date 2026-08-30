@@ -6,13 +6,14 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+    <!--
+      Roboto and the Material Icons font are bundled by styles.scss rather than fetched from
+      Google's CDN. Three reasons, in order of how much they matter here: the app is used on
+      Lebanese connections that are regularly slow or down, and a menu editor whose icons are
+      blank squares is not usable; a cross-origin round trip before first paint is the single
+      slowest thing on a cold load; and no visitor's IP reaches a third party just to read text.
+    -->
   </head>
   <body>
     <app-root></app-root>

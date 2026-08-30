@@ -139,16 +139,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build every project
+      # The API has TreatWarningsAsErrors and .editorconfig doing this job; the front end had
+      # nothing. Formatting arguments are not worth a reviewer's attention.
+      - name: Check formatting
+        run: npm run format:check
+
+      # Only the two applications are built.
+      #
+      # api-client, auth and ui are consumed through tsconfig `paths` that point at their
+      # sources, so an application build compiles those sources as part of its own program —
+      # a type error in a library fails the build below, which is the coverage we actually
+      # want. Running `ng build auth` on top of that would package the library for npm, which
+      # is not something this workspace does and cannot work while the paths resolve to source
+      # (ng-packagr rejects files outside the library's rootDir). See web/README.md.
+      - name: Build applications
         run: |
           npx ng build dashboard --configuration production
           npx ng build storefront --configuration production
-          npx ng build api-client
-          npx ng build auth
-          npx ng build ui
 
+      # Every project that has specs, named explicitly. A bare `ng test` would run one project
+      # and quietly leave the rest unverified — which is how the auth interceptor suite, the
+      # most load-bearing tests on the front end, ended up never running here.
       - name: Test
-        run: npx ng test dashboard --watch=false
+        run: |
+          npx ng test dashboard --watch=false
+          npx ng test storefront --watch=false
+          npx ng test auth --watch=false
+          npx ng test ui --watch=false
 
   contract:
     name: API client is current

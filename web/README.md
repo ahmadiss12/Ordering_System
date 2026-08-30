@@ -1,59 +1,79 @@
 # Web
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.6.
+The Angular workspace: two applications and three shared libraries.
 
-## Development server
+| Project      | Type        | What it is                                                        |
+| ------------ | ----------- | ----------------------------------------------------------------- |
+| `dashboard`  | application | Restaurant staff — menu, orders, hours.                           |
+| `storefront` | application | The customer-facing ordering site.                                |
+| `api-client` | library     | **Generated.** TypeScript client for the API. Never edit by hand. |
+| `auth`       | library     | Tokens, refresh, route guards, HTTP interceptor.                  |
+| `ui`         | library     | Presentational pieces both applications share.                    |
 
-To start a local development server, run:
+## Prerequisites
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Node is pinned in [`.nvmrc`](.nvmrc); Angular refuses to run on an older one.
 
 ```bash
-ng generate component component-name
+nvm use          # reads .nvmrc
+npm ci           # installs exactly what package-lock.json says
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Running
 
 ```bash
-ng generate --help
+npm start                    # dashboard on http://localhost:4200
+npx ng serve storefront      # storefront on http://localhost:4201
 ```
 
-## Building
+Both proxy `/api` and `/media` to the backend on `http://localhost:5080`
+([`proxy.conf.json`](proxy.conf.json)), so run the API first — see the root
+[README](../README.md).
 
-To build the project run:
+## Testing
 
 ```bash
-ng build
+npx ng test dashboard --watch=false
+npx ng test auth --watch=false
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+CI runs the suite for every project that has one. If you add specs to a project, add it to the
+`Test` step in [`ci.yml`](../.github/workflows/ci.yml) — a project that is never named is a
+project whose tests never run.
 
-## Running unit tests
+## Regenerating the API client
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+`api-client` is generated from the API's OpenAPI document. After changing a controller or a DTO:
 
 ```bash
-ng test
+./scripts/generate-api-client.sh      # or .ps1 on Windows
 ```
 
-## Running end-to-end tests
+Commit the result. It is checked in deliberately, so a fresh clone builds without a running API,
+and so a diff in the client shows up in review as the API contract change it is.
 
-For end-to-end (e2e) testing, run:
+## Why the libraries are not built as packages
 
-```bash
-ng e2e
-```
+`ng build dashboard` works. `ng build auth` does not, and that is expected.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+The root `tsconfig.json` maps `api-client`, `auth` and `ui` to their **source** files. That is
+what makes editing a library show up instantly in a running app, with no build step and no
+stale `dist` to explain. The cost is that `ng build <library>` — which packages a library for
+npm — cannot run, because ng-packagr requires every file to sit inside the library's own
+`rootDir`, and `auth` imports `api-client` source that sits outside it.
 
-## Additional Resources
+Nothing is lost by that. These libraries are internal to this workspace and are not published,
+and an application build compiles their sources as part of its own program, so a type error in
+`auth` fails `ng build dashboard`. CI therefore builds the two applications and tests all five
+projects.
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+If a library ever does need publishing, point the `paths` entries at `dist/` and build in
+dependency order — a deliberate trade of developer experience for a shippable package.
+
+## Fonts
+
+Roboto and the Material Icons font are bundled from `node_modules` in `styles.scss`, not fetched
+from Google's CDN: the product is used on Lebanese connections that are often slow or down, a
+cross-origin round trip before first paint is the slowest thing on a cold load, and no visitor's
+IP needs to reach a third party for the page to render. Latin subsets only — the product ships
+in English.

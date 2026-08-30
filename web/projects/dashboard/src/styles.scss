@@ -5,6 +5,14 @@
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 
+// Self-hosted fonts — see the note in index.html for why these are not CDN links.
+// Latin only: the product ships in English, so the Cyrillic and Greek subsets would be
+// bytes nobody ever renders.
+@use '@fontsource/roboto/latin-300.css';
+@use '@fontsource/roboto/latin-400.css';
+@use '@fontsource/roboto/latin-500.css';
+@use 'material-icons/iconfont/filled.css';
+
 html {
   height: 100%;
   @include mat.theme(
