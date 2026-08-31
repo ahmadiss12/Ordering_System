@@ -83,6 +83,19 @@ public class RepositoryConventionTests
     }
 
     [Fact]
+    public void Uploaded_photos_are_not_committed()
+    {
+        // ImageStorageOptions.RootPath points inside the working tree, so every photo a developer
+        // uploads while running the API locally appears as an untracked file. Without this line
+        // in .gitignore they get swept into a commit by `git add -A`, which is how one machine's
+        // test uploads end up in everybody's clone.
+        var gitignore = File.ReadAllText(RepoFile(".gitignore"));
+
+        gitignore.ShouldContain("wwwroot/media", Case.Sensitive,
+            "uploaded images are runtime data, not source");
+    }
+
+    [Fact]
     public void The_web_role_names_match_the_RoleType_enum()
     {
         // The token issuer serialises roles with nameof(RoleType.X), and the browser reads those

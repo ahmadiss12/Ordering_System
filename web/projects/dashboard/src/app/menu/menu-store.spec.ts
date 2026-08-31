@@ -19,6 +19,15 @@ describe('MenuStore', () => {
   let items: MenuItemResponse[];
   let update: ReturnType<typeof vi.fn>;
   let create: ReturnType<typeof vi.fn>;
+  let itemApi: {
+    list: () => Observable<MenuItemResponse[]>;
+    create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    setAvailability: ReturnType<typeof vi.fn>;
+    uploadImage: ReturnType<typeof vi.fn>;
+    removeImage: ReturnType<typeof vi.fn>;
+  };
 
   function build(): MenuStore {
     update = vi.fn((id: string, request: Record<string, unknown>) =>
@@ -28,6 +37,33 @@ describe('MenuStore', () => {
       of({ id: 'new', isActive: true, ...request } as CategoryResponse),
     );
 
+    itemApi = {
+      list: () => of(items),
+      create: vi.fn((request: Record<string, unknown>) =>
+        of({ id: 'new-item', isAvailable: true, ...request } as unknown as MenuItemResponse),
+      ),
+      update: vi.fn((id: string, request: Record<string, unknown>) =>
+        of({ ...items.find((i) => i.id === id), ...request } as unknown as MenuItemResponse),
+      ),
+      delete: vi.fn(() => of(undefined)),
+      setAvailability: vi.fn((id: string, request: { isAvailable: boolean }) =>
+        of({ ...items.find((i) => i.id === id), ...request } as unknown as MenuItemResponse),
+      ),
+      uploadImage: vi.fn((id: string) =>
+        of({
+          ...items.find((i) => i.id === id),
+          id,
+          imageUrl: '/media/x.webp',
+        } as unknown as MenuItemResponse),
+      ),
+      removeImage: vi.fn((id: string) =>
+        of({
+          ...items.find((i) => i.id === id),
+          imageUrl: undefined,
+        } as unknown as MenuItemResponse),
+      ),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
@@ -36,7 +72,7 @@ describe('MenuStore', () => {
           provide: RestaurantCategoriesClient,
           useValue: { list: () => of(categories), create, update },
         },
-        { provide: RestaurantMenuItemsClient, useValue: { list: () => of(items) } },
+        { provide: RestaurantMenuItemsClient, useValue: itemApi },
       ],
     });
 
@@ -156,7 +192,109 @@ describe('MenuStore', () => {
     expect(store.error()).toBe('Could not save the section.');
   });
 
+  // ------------------------------------------------------------------ items
+
+  it('uploads the photo only after the item exists', async () => {
+    const store = build();
+    await store.load();
+
+    const photo = new File(['x'], 'burger.png', { type: 'image/png' });
+    await store.createItem(newItemRequest(), photo);
+
+    // The upload endpoint needs an id, which does not exist until create returns.
+    expect(itemApi.create).toHaveBeenCalledTimes(1);
+    expect(itemApi.uploadImage).toHaveBeenCalledWith('new-item', {
+      data: photo,
+      fileName: 'burger.png',
+    });
+  });
+
+  it('does not touch the image endpoint when no photo was chosen', async () => {
+    const store = build();
+    await store.load();
+
+    await store.createItem(newItemRequest());
+
+    expect(itemApi.uploadImage).not.toHaveBeenCalled();
+  });
+
+  it('keeps the item when only its photo fails to upload', async () => {
+    const store = build();
+    await store.load();
+
+    itemApi.uploadImage.mockReturnValue(throwError(() => new Error('upload failed')));
+
+    const ok = await store.createItem(newItemRequest(), new File(['x'], 'p.png'));
+
+    // Rolling back would delete a dish somebody just typed out because a photo did not stick.
+    expect(ok).toBe(false);
+    expect(store.items().some((i) => i.id === 'new-item')).toBe(true);
+    expect(store.error()).toBe('Could not add the item.');
+  });
+
+  it('changes availability through its own endpoint, not the item form', async () => {
+    const store = build();
+    await store.load();
+
+    await store.setItemAvailable(items[0], false);
+
+    // The update endpoint carries no availability field: the API separates them because this
+    // one is pressed mid-service.
+    expect(itemApi.setAvailability).toHaveBeenCalledWith('a', { isAvailable: false });
+    expect(itemApi.update).not.toHaveBeenCalled();
+    expect(store.items().find((i) => i.id === 'a')?.isAvailable).toBe(false);
+  });
+
+  it('takes a removed item off the list', async () => {
+    const store = build();
+    await store.load();
+
+    await store.deleteItem(items[0]);
+
+    expect(itemApi.delete).toHaveBeenCalledWith('a');
+    expect(store.items().some((i) => i.id === 'a')).toBe(false);
+  });
+
+  it('moves an item only among its own section', async () => {
+    const store = build();
+    await store.load();
+
+    // 'c' is alone in Fries, so there is no neighbour to swap with even though other items exist.
+    await store.moveItem(items[2], -1);
+
+    expect(itemApi.update).not.toHaveBeenCalled();
+  });
+
+  it('swaps an item with the one above it', async () => {
+    const store = build();
+    await store.load();
+
+    // 'a' (Double, sortOrder 1) sits below 'b' (Classic, sortOrder 0) in Burgers.
+    await store.moveItem(items[0], -1);
+
+    expect(itemApi.update).toHaveBeenCalledTimes(2);
+    expect(store.sections()[0].items.map((i) => i.name)).toEqual(['Double', 'Classic']);
+  });
+
+  it('puts a new item after the ones already in that section', async () => {
+    const store = build();
+    await store.load();
+
+    expect(store.nextItemSortOrder('burgers')).toBe(2);
+    expect(store.nextItemSortOrder('drinks')).toBe(0);
+  });
+
   // ------------------------------------------------------------------ helpers
+
+  function newItemRequest() {
+    return {
+      categoryId: 'burgers',
+      name: 'New',
+      description: undefined,
+      basePriceUsd: 9,
+      sortOrder: 2,
+    };
+  }
 
   function category(id: string, name: string, sortOrder: number): CategoryResponse {
     return { id, name, sortOrder, isActive: true } as CategoryResponse;
@@ -167,9 +305,9 @@ describe('MenuStore', () => {
       id,
       categoryId,
       name,
-      description: null,
+      description: undefined,
       basePriceUsd: 5,
-      imageUrl: null,
+      imageUrl: undefined,
       isAvailable: true,
       sortOrder,
     } as unknown as MenuItemResponse;

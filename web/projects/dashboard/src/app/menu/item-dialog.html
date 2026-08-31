@@ -1,0 +1,80 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Edit item' : 'New item' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="form" (ngSubmit)="submit()">
+    <mat-form-field appearance="outline">
+      <mat-label>Name</mat-label>
+      <input matInput formControlName="name" maxlength="200" cdkFocusInitial />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <mat-error>Give the item a name.</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Description</mat-label>
+      <textarea matInput formControlName="description" rows="3" maxlength="1000"></textarea>
+      <mat-hint>What a customer sees under the name. Optional.</mat-hint>
+    </mat-form-field>
+
+    <div class="row">
+      <mat-form-field appearance="outline">
+        <mat-label>Price</mat-label>
+        <span matTextPrefix>$&nbsp;</span>
+        <input matInput formControlName="price" type="text" inputmode="decimal" />
+        @if (form.controls.price.touched && form.controls.price.invalid) {
+          <mat-error>Enter a price like 8 or 8.50.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Section</mat-label>
+        <mat-select formControlName="categoryId">
+          @for (category of data.categories; track category.id) {
+            <mat-option [value]="category.id">
+              {{ category.name }}
+              @if (!category.isActive) {
+                <span class="muted">(hidden)</span>
+              }
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="photo">
+      <div class="photo-preview">
+        @if (previewUrl(); as url) {
+          <img [src]="url" alt="" />
+        } @else {
+          <mat-icon>photo_camera</mat-icon>
+        }
+      </div>
+
+      <div class="photo-actions">
+        <input #photoInput type="file" accept="image/*" hidden (change)="choosePhoto($event)" />
+        <button matButton type="button" (click)="photoInput.click()">
+          <mat-icon>upload</mat-icon>
+          {{ previewUrl() ? 'Replace photo' : 'Add photo' }}
+        </button>
+
+        @if (previewUrl()) {
+          <button matButton type="button" (click)="removePhoto()">Remove</button>
+        }
+
+        @if (photoError(); as message) {
+          <p class="photo-error" role="alert">{{ message }}</p>
+        } @else {
+          <p class="photo-hint">
+            JPEG or PNG, up to 8 MB. It is resized and stripped of location data before it is
+            stored.
+          </p>
+        }
+      </div>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button matButton mat-dialog-close>Cancel</button>
+  <button matButton="filled" (click)="submit()">{{ isEdit ? 'Save' : 'Add item' }}</button>
+</mat-dialog-actions>

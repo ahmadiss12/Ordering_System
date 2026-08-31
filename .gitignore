@@ -40,3 +40,8 @@ appsettings.Development.local.json
 
 # ---- Docker volumes ----
 docker/data/
+
+# Uploaded menu photos. ImageStorageOptions.RootPath points here, so anything a developer
+# uploads while running the API locally lands in the working tree. It is runtime data, not
+# source: committing it would put one machine's test uploads into everyone's clone.
+api/src/OrderingSystem.Api/wwwroot/media/

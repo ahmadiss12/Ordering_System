@@ -9,8 +9,10 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { CategoryResponse } from 'api-client';
+import { CategoryResponse, MenuItemResponse } from 'api-client';
 import { firstValueFrom } from 'rxjs';
+import { ConfirmData, ConfirmDialog } from '../common/confirm-dialog';
+import { ItemDialog, ItemDialogData, ItemDialogResult } from './item-dialog';
 import { MenuStore } from './menu-store';
 import { NamePromptData, NamePromptDialog } from './name-prompt-dialog';
 
@@ -83,12 +85,85 @@ export class Menu {
     await this.store.moveCategory(category, direction);
   }
 
+  // ------------------------------------------------------------------ items
+
+  protected async addItem(category: CategoryResponse): Promise<void> {
+    const result = await this.askAboutItem({
+      categories: this.store.categories(),
+      categoryId: category.id,
+      nextSortOrder: (id) => this.store.nextItemSortOrder(id),
+    });
+
+    if (result) {
+      await this.store.createItem(result.request, result.photo);
+    }
+  }
+
+  protected async editItem(item: MenuItemResponse): Promise<void> {
+    const result = await this.askAboutItem({
+      categories: this.store.categories(),
+      categoryId: item.categoryId,
+      item,
+      nextSortOrder: (id) => this.store.nextItemSortOrder(id),
+    });
+
+    if (!result) {
+      return;
+    }
+
+    const saved = await this.store.updateItem(item, result.request, result.photo);
+
+    // Only after the rest saved: dropping the photo of an item whose edit was refused would
+    // lose something the person never asked to lose.
+    if (saved && result.removePhoto) {
+      await this.store.removeItemPhoto(item);
+    }
+  }
+
+  protected async toggleItem(item: MenuItemResponse, isAvailable: boolean): Promise<void> {
+    await this.store.setItemAvailable(item, isAvailable);
+  }
+
+  protected async moveItem(item: MenuItemResponse, direction: -1 | 1): Promise<void> {
+    await this.store.moveItem(item, direction);
+  }
+
+  protected async removeItem(item: MenuItemResponse): Promise<void> {
+    const confirmed = await this.confirm({
+      title: `Remove ${item.name}?`,
+      message:
+        'It comes off the menu straight away. Past orders that included it are not affected.',
+      confirm: 'Remove',
+      destructive: true,
+    });
+
+    if (confirmed) {
+      await this.store.deleteItem(item);
+    }
+  }
+
+  // ------------------------------------------------------------------ helpers
+
   protected isFirst(index: number): boolean {
     return index === 0;
   }
 
   protected isLast(index: number): boolean {
     return index === this.store.sections().length - 1;
+  }
+
+  private async askAboutItem(data: ItemDialogData): Promise<ItemDialogResult | undefined> {
+    return firstValueFrom(
+      this.dialog
+        .open<ItemDialog, ItemDialogData, ItemDialogResult>(ItemDialog, { data })
+        .afterClosed(),
+    );
+  }
+
+  private async confirm(data: ConfirmData): Promise<boolean | undefined> {
+    return firstValueFrom(
+      this.dialog.open<ConfirmDialog, ConfirmData, boolean>(ConfirmDialog, { data }).afterClosed(),
+    );
   }
 
   private async askForName(data: NamePromptData): Promise<string | undefined> {

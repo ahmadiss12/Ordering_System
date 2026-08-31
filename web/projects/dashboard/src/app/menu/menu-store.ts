@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   CategoryResponse,
+  CreateMenuItemRequest,
+  FileParameter,
   MenuItemResponse,
   RestaurantCategoriesClient,
   RestaurantMenuItemsClient,
@@ -168,6 +170,112 @@ export class MenuStore {
     );
   }
 
+  // ------------------------------------------------------------------ items
+
+  /** Where a new item lands: after the ones already in that section. */
+  nextItemSortOrder(categoryId: string): number {
+    return highestSortOrder(this.itemsSignal().filter((i) => i.categoryId === categoryId)) + 1;
+  }
+
+  /**
+   * Creates an item and, if one was chosen, uploads its photo.
+   *
+   * The photo is a second request because the endpoint needs an id that does not exist until the
+   * first one returns. A failed upload leaves the item created and says so, rather than rolling
+   * back a dish someone just typed out.
+   */
+  async createItem(request: CreateMenuItemRequest, photo?: File): Promise<boolean> {
+    return this.write('Could not add the item.', async () => {
+      const created = await firstValueFrom(this.itemsClient.create(request));
+      this.itemsSignal.update((current) => [...current, created]);
+
+      if (photo) {
+        await this.uploadPhoto(created.id, photo);
+      }
+    });
+  }
+
+  async updateItem(
+    item: MenuItemResponse,
+    request: CreateMenuItemRequest,
+    photo?: File,
+  ): Promise<boolean> {
+    return this.write('Could not save the item.', async () => {
+      const updated = await firstValueFrom(this.itemsClient.update(item.id, request));
+      this.replaceItem(updated);
+
+      if (photo) {
+        await this.uploadPhoto(item.id, photo);
+      }
+    });
+  }
+
+  /** The mid-service action: the kitchen ran out, and this is one press on the row. */
+  async setItemAvailable(item: MenuItemResponse, isAvailable: boolean): Promise<boolean> {
+    return this.write('Could not change availability.', async () => {
+      const updated = await firstValueFrom(
+        this.itemsClient.setAvailability(item.id, { isAvailable }),
+      );
+      this.replaceItem(updated);
+    });
+  }
+
+  /**
+   * Removes an item from the menu. A soft delete on the server — order lines point at this row
+   * and have to keep resolving — so past orders still read correctly afterwards.
+   */
+  async deleteItem(item: MenuItemResponse): Promise<boolean> {
+    return this.write('Could not remove the item.', async () => {
+      await firstValueFrom(this.itemsClient.delete(item.id));
+      this.itemsSignal.update((current) => current.filter((i) => i.id !== item.id));
+    });
+  }
+
+  async removeItemPhoto(item: MenuItemResponse): Promise<boolean> {
+    return this.write('Could not remove the photo.', async () => {
+      const updated = await firstValueFrom(this.itemsClient.removeImage(item.id));
+      this.replaceItem(updated);
+    });
+  }
+
+  /** Moves an item one place within its own section, the same swap the sections use. */
+  async moveItem(item: MenuItemResponse, direction: -1 | 1): Promise<boolean> {
+    const siblings = this.itemsSignal()
+      .filter((i) => i.categoryId === item.categoryId)
+      .sort(bySortOrderThenName);
+
+    const index = siblings.findIndex((i) => i.id === item.id);
+    const neighbour = siblings[index + direction];
+
+    if (!neighbour) {
+      return true;
+    }
+
+    return this.write('Could not reorder the items.', async () => {
+      const [mine, theirs] = await Promise.all([
+        firstValueFrom(
+          this.itemsClient.update(item.id, { ...toRequest(item), sortOrder: index + direction }),
+        ),
+        firstValueFrom(
+          this.itemsClient.update(neighbour.id, { ...toRequest(neighbour), sortOrder: index }),
+        ),
+      ]);
+
+      this.replaceItem(mine);
+      this.replaceItem(theirs);
+    });
+  }
+
+  private async uploadPhoto(itemId: string, photo: File): Promise<void> {
+    const file: FileParameter = { data: photo, fileName: photo.name };
+    const updated = await firstValueFrom(this.itemsClient.uploadImage(itemId, file));
+    this.replaceItem(updated);
+  }
+
+  private replaceItem(updated: MenuItemResponse): void {
+    this.itemsSignal.update((current) => current.map((i) => (i.id === updated.id ? updated : i)));
+  }
+
   /**
    * Runs a write, reporting failure rather than throwing. Returns whether it succeeded, so a
    * dialog knows whether to close.
@@ -193,6 +301,17 @@ function bySortOrderThenName(
   b: { sortOrder: number; name: string },
 ): number {
   return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name);
+}
+
+/** The item's own values as an update request, for the fields a caller is not changing. */
+function toRequest(item: MenuItemResponse): CreateMenuItemRequest {
+  return {
+    categoryId: item.categoryId,
+    name: item.name,
+    description: item.description,
+    basePriceUsd: item.basePriceUsd,
+    sortOrder: item.sortOrder,
+  };
 }
 
 function highestSortOrder(rows: readonly { sortOrder: number }[]): number {

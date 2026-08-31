@@ -101,24 +101,90 @@
             <p class="no-items">Nothing in this section yet.</p>
           } @else {
             <ul class="items">
-              @for (item of section.items; track item.id) {
+              @for (item of section.items; track item.id; let j = $index) {
                 <li class="item" [class.unavailable]="!item.isAvailable">
+                  <div class="item-photo">
+                    @if (item.imageUrl) {
+                      <img [src]="item.imageUrl" [alt]="item.name" loading="lazy" />
+                    } @else {
+                      <mat-icon>photo_camera</mat-icon>
+                    }
+                  </div>
+
                   <div class="item-main">
                     <span class="item-name">{{ item.name }}</span>
                     @if (item.description) {
                       <span class="item-description">{{ item.description }}</span>
                     }
                   </div>
+
                   <div class="item-meta">
                     @if (!item.isAvailable) {
                       <span class="badge">Sold out</span>
                     }
                     <span class="item-price">{{ item.basePriceUsd | currency: 'USD' }}</span>
                   </div>
+
+                  <div class="item-actions">
+                    <!-- The one-press action during service: the kitchen ran out. It sits on the
+                         row rather than inside the edit form so it costs one press, not five. -->
+                    <mat-slide-toggle
+                      [checked]="item.isAvailable"
+                      [disabled]="store.saving()"
+                      [matTooltip]="item.isAvailable ? 'Available' : 'Sold out'"
+                      [aria-label]="'Available: ' + item.name"
+                      (change)="toggleItem(item, $event.checked)"
+                    />
+
+                    <button
+                      matIconButton
+                      [matMenuTriggerFor]="itemMenu"
+                      [attr.aria-label]="'Options for ' + item.name"
+                    >
+                      <mat-icon>more_vert</mat-icon>
+                    </button>
+                    <mat-menu #itemMenu="matMenu">
+                      <button mat-menu-item (click)="editItem(item)">
+                        <mat-icon>edit</mat-icon>
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        mat-menu-item
+                        [disabled]="j === 0 || store.saving()"
+                        (click)="moveItem(item, -1)"
+                      >
+                        <mat-icon>arrow_upward</mat-icon>
+                        <span>Move up</span>
+                      </button>
+                      <button
+                        mat-menu-item
+                        [disabled]="j === section.items.length - 1 || store.saving()"
+                        (click)="moveItem(item, 1)"
+                      >
+                        <mat-icon>arrow_downward</mat-icon>
+                        <span>Move down</span>
+                      </button>
+                      <mat-divider />
+                      <button mat-menu-item class="destructive" (click)="removeItem(item)">
+                        <mat-icon>delete_outline</mat-icon>
+                        <span>Remove</span>
+                      </button>
+                    </mat-menu>
+                  </div>
                 </li>
               }
             </ul>
           }
+
+          <button
+            matButton
+            class="add-item"
+            [disabled]="store.saving()"
+            (click)="addItem(section.category)"
+          >
+            <mat-icon>add</mat-icon>
+            Add item
+          </button>
         </mat-card-content>
       </mat-card>
     }
