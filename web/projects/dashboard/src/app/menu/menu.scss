@@ -228,3 +228,8 @@
   margin-top: 1rem;
   border-color: var(--mat-sys-outline);
 }
+
+// Material's tab body has no padding of its own, and the cards need to breathe.
+.tab-body {
+  padding-top: 1rem;
+}

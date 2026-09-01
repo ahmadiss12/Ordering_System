@@ -4,8 +4,11 @@ import {
   ApiException,
   CategoryResponse,
   MenuItemResponse,
+  OptionResponse,
+  OptionGroupResponse,
   RestaurantCategoriesClient,
   RestaurantMenuItemsClient,
+  RestaurantOptionGroupsClient,
 } from 'api-client';
 import { Observable, of, throwError } from 'rxjs';
 import { MenuStore } from './menu-store';
@@ -19,6 +22,14 @@ describe('MenuStore', () => {
   let items: MenuItemResponse[];
   let update: ReturnType<typeof vi.fn>;
   let create: ReturnType<typeof vi.fn>;
+  let groups: OptionGroupResponse[];
+  let groupApi: {
+    list: () => Observable<OptionGroupResponse[]>;
+    create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    addOption: ReturnType<typeof vi.fn>;
+    updateOption: ReturnType<typeof vi.fn>;
+  };
   let itemApi: {
     list: () => Observable<MenuItemResponse[]>;
     create: ReturnType<typeof vi.fn>;
@@ -27,6 +38,9 @@ describe('MenuStore', () => {
     setAvailability: ReturnType<typeof vi.fn>;
     uploadImage: ReturnType<typeof vi.fn>;
     removeImage: ReturnType<typeof vi.fn>;
+    attachOptionGroup: ReturnType<typeof vi.fn>;
+    detachOptionGroup: ReturnType<typeof vi.fn>;
+    listOptionGroups: ReturnType<typeof vi.fn>;
   };
 
   function build(): MenuStore {
@@ -36,6 +50,22 @@ describe('MenuStore', () => {
     create = vi.fn((request: Record<string, unknown>) =>
       of({ id: 'new', isActive: true, ...request } as CategoryResponse),
     );
+
+    groupApi = {
+      list: () => of(groups),
+      create: vi.fn((request: Record<string, unknown>) =>
+        of({ id: 'new-group', options: [], ...request } as unknown as OptionGroupResponse),
+      ),
+      update: vi.fn((id: string, request: Record<string, unknown>) =>
+        of({ ...groups.find((g) => g.id === id), ...request } as unknown as OptionGroupResponse),
+      ),
+      addOption: vi.fn((groupId: string, request: Record<string, unknown>) =>
+        of({ id: 'new-option', ...request } as unknown as OptionResponse),
+      ),
+      updateOption: vi.fn((optionId: string, request: Record<string, unknown>) =>
+        of({ id: optionId, ...request } as unknown as OptionResponse),
+      ),
+    };
 
     itemApi = {
       list: () => of(items),
@@ -56,6 +86,9 @@ describe('MenuStore', () => {
           imageUrl: '/media/x.webp',
         } as unknown as MenuItemResponse),
       ),
+      attachOptionGroup: vi.fn(() => of(undefined)),
+      detachOptionGroup: vi.fn(() => of(undefined)),
+      listOptionGroups: vi.fn(() => of([])),
       removeImage: vi.fn((id: string) =>
         of({
           ...items.find((i) => i.id === id),
@@ -73,6 +106,7 @@ describe('MenuStore', () => {
           useValue: { list: () => of(categories), create, update },
         },
         { provide: RestaurantMenuItemsClient, useValue: itemApi },
+        { provide: RestaurantOptionGroupsClient, useValue: groupApi },
       ],
     });
 
@@ -84,6 +118,16 @@ describe('MenuStore', () => {
       category('drinks', 'Drinks', 2),
       category('burgers', 'Burgers', 0),
       category('fries', 'Fries', 1),
+    ];
+    groups = [
+      {
+        id: 'sauces',
+        name: 'Sauces',
+        minSelect: 0,
+        maxSelect: 3,
+        sortOrder: 0,
+        options: [{ id: 'garlic', name: 'Garlic' }],
+      } as unknown as OptionGroupResponse,
     ];
     items = [
       item('a', 'burgers', 'Double', 1),
@@ -282,6 +326,92 @@ describe('MenuStore', () => {
 
     expect(store.nextItemSortOrder('burgers')).toBe(2);
     expect(store.nextItemSortOrder('drinks')).toBe(0);
+  });
+
+  // ------------------------------------------------------------------ option groups
+
+  it('sends no maximum rather than a maximum of null', async () => {
+    const store = build();
+    await store.load();
+
+    await store.createOptionGroup('Extras', { minSelect: 0, maxSelect: null });
+
+    // The generated client omits undefined from the body; a literal null would be read by the
+    // API as a value rather than as "no limit".
+    expect(groupApi.create).toHaveBeenCalledWith({
+      name: 'Extras',
+      minSelect: 0,
+      maxSelect: undefined,
+      sortOrder: 1,
+    });
+  });
+
+  it('keeps a group its choices when only the rule changes', async () => {
+    const store = build();
+    await store.load();
+
+    // The update response carries no options; blanking them would empty the group on screen
+    // every time somebody corrected its name.
+    groupApi.update.mockReturnValue(
+      of({ id: 'sauces', name: 'Sauces', minSelect: 1, maxSelect: 1, sortOrder: 0 }),
+    );
+
+    await store.updateOptionGroup(groups[0], { rule: { minSelect: 1, maxSelect: 1 } });
+
+    expect(store.optionGroups()[0].options).toHaveLength(1);
+    expect(store.optionGroups()[0].minSelect).toBe(1);
+  });
+
+  it('adds a choice to the group it belongs to', async () => {
+    const store = build();
+    await store.load();
+
+    await store.addOption(groups[0], {
+      name: 'Spicy Mayo',
+      priceDeltaUsd: 0.5,
+      maxQuantity: 1,
+      sortOrder: 1,
+    });
+
+    expect(groupApi.addOption).toHaveBeenCalledWith(
+      'sauces',
+      expect.objectContaining({
+        name: 'Spicy Mayo',
+      }),
+    );
+    expect(store.optionGroups()[0].options.map((o) => o.name)).toEqual(['Garlic', 'Spicy Mayo']);
+  });
+
+  it('attaches a group to an item without an override', async () => {
+    const store = build();
+    await store.load();
+
+    await store.attachOptionGroup('item-1', {
+      optionGroupId: 'sauces',
+      sortOrder: 0,
+      minSelectOverride: undefined,
+      maxSelectOverride: undefined,
+    });
+
+    // Undefined, not zero: zero is a real minimum, and would silently become an override.
+    expect(itemApi.attachOptionGroup).toHaveBeenCalledWith('item-1', {
+      optionGroupId: 'sauces',
+      sortOrder: 0,
+      minSelectOverride: undefined,
+      maxSelectOverride: undefined,
+    });
+  });
+
+  it("reports rather than throws when an item's groups cannot be read", async () => {
+    const store = build();
+    await store.load();
+
+    itemApi.listOptionGroups.mockReturnValue(throwError(() => new Error('offline')));
+
+    const result = await store.loadItemOptionGroups('item-1');
+
+    expect(result).toBeNull();
+    expect(store.error()).toBe("Could not load this item's options.");
   });
 
   // ------------------------------------------------------------------ helpers

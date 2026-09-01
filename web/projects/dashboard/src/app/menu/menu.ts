@@ -1,5 +1,5 @@
 import { CurrencyPipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, Injector, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -9,10 +9,24 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { CategoryResponse, MenuItemResponse } from 'api-client';
+import { MatTabsModule } from '@angular/material/tabs';
+import {
+  CategoryResponse,
+  MenuItemResponse,
+  OptionGroupResponse,
+  OptionResponse,
+} from 'api-client';
 import { firstValueFrom } from 'rxjs';
 import { ConfirmData, ConfirmDialog } from '../common/confirm-dialog';
 import { ItemDialog, ItemDialogData, ItemDialogResult } from './item-dialog';
+import { ItemOptionsDialog, ItemOptionsDialogData } from './item-options-dialog';
+import { OptionDialog, OptionDialogData, OptionDialogResult } from './option-dialog';
+import {
+  OptionGroupDialog,
+  OptionGroupDialogData,
+  OptionGroupDialogResult,
+} from './option-group-dialog';
+import { ruleFrom, summariseRule } from './selection-rule';
 import { MenuStore } from './menu-store';
 import { NamePromptData, NamePromptDialog } from './name-prompt-dialog';
 
@@ -38,6 +52,7 @@ import { NamePromptData, NamePromptDialog } from './name-prompt-dialog';
     MatDividerModule,
     MatProgressBarModule,
     MatSlideToggleModule,
+    MatTabsModule,
     MatTooltipModule,
   ],
   templateUrl: './menu.html',
@@ -46,7 +61,18 @@ import { NamePromptData, NamePromptDialog } from './name-prompt-dialog';
 export class Menu {
   private readonly dialog = inject(MatDialog);
 
+  /**
+   * MatDialog builds its content in the root injector, so a dialog cannot see MenuStore — which
+   * this component provides, deliberately, so the menu is dropped on leaving the page. Handing
+   * the dialog this injector is what lets it share the same store rather than reaching for a
+   * root-provided one that does not exist.
+   */
+  private readonly injector = inject(Injector);
+
   protected readonly store = inject(MenuStore);
+
+  /** Which tab is showing. The header's primary button follows it. */
+  protected readonly tab = signal(0);
 
   constructor() {
     void this.store.load();
@@ -142,6 +168,76 @@ export class Menu {
     }
   }
 
+  // ------------------------------------------------------------------ option groups
+
+  protected summarise(source: { minSelect?: number; maxSelect?: number | null }): string {
+    return summariseRule(ruleFrom(source));
+  }
+
+  protected async addOptionGroup(): Promise<void> {
+    const result = await this.askAboutGroup({});
+    if (result) {
+      await this.store.createOptionGroup(result.name, result.rule);
+    }
+  }
+
+  protected async editOptionGroup(group: OptionGroupResponse): Promise<void> {
+    const result = await this.askAboutGroup({ group });
+    if (result) {
+      await this.store.updateOptionGroup(group, { name: result.name, rule: result.rule });
+    }
+  }
+
+  protected async addOption(group: OptionGroupResponse): Promise<void> {
+    const result = await this.askAboutOption({
+      groupName: group.name,
+      sortOrder: group.options.length,
+    });
+
+    if (result) {
+      await this.store.addOption(group, result);
+    }
+  }
+
+  protected async editOption(group: OptionGroupResponse, option: OptionResponse): Promise<void> {
+    const result = await this.askAboutOption({
+      groupName: group.name,
+      option,
+      sortOrder: option.sortOrder,
+    });
+
+    if (result) {
+      await this.store.updateOption(group, option.id, result);
+    }
+  }
+
+  protected async toggleOption(
+    group: OptionGroupResponse,
+    option: OptionResponse,
+    isAvailable: boolean,
+  ): Promise<void> {
+    await this.store.updateOption(group, option.id, {
+      name: option.name,
+      priceDeltaUsd: option.priceDeltaUsd,
+      maxQuantity: option.maxQuantity,
+      sortOrder: option.sortOrder,
+      isAvailable,
+    });
+  }
+
+  protected async editItemOptions(item: MenuItemResponse): Promise<void> {
+    // Its own dialog rather than a section of the item form: what a dish costs is one question,
+    // and which choices it offers is another.
+    await firstValueFrom(
+      this.dialog
+        .open<ItemOptionsDialog, ItemOptionsDialogData, void>(ItemOptionsDialog, {
+          data: { item },
+          injector: this.injector,
+        })
+        .afterClosed(),
+    );
+  }
+
   // ------------------------------------------------------------------ helpers
 
   protected isFirst(index: number): boolean {
@@ -150,6 +246,27 @@ export class Menu {
 
   protected isLast(index: number): boolean {
     return index === this.store.sections().length - 1;
+  }
+
+  private async askAboutGroup(
+    data: OptionGroupDialogData,
+  ): Promise<OptionGroupDialogResult | undefined> {
+    return firstValueFrom(
+      this.dialog
+        .open<OptionGroupDialog, OptionGroupDialogData, OptionGroupDialogResult>(
+          OptionGroupDialog,
+          { data },
+        )
+        .afterClosed(),
+    );
+  }
+
+  private async askAboutOption(data: OptionDialogData): Promise<OptionDialogResult | undefined> {
+    return firstValueFrom(
+      this.dialog
+        .open<OptionDialog, OptionDialogData, OptionDialogResult>(OptionDialog, { data })
+        .afterClosed(),
+    );
   }
 
   private async askAboutItem(data: ItemDialogData): Promise<ItemDialogResult | undefined> {

@@ -1,0 +1,121 @@
+<h2 mat-dialog-title>Choices for {{ data.item.name }}</h2>
+
+<mat-dialog-content>
+  @if (loading() || store.saving()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (store.optionGroups().length === 0) {
+    <p class="empty">
+      No option groups yet. Create one on the <strong>Option groups</strong> tab, then attach it
+      here.
+    </p>
+  } @else {
+    <ul class="groups">
+      @for (row of rows(); track row.group.id) {
+        <li class="group" [class.attached]="row.attached">
+          <div class="group-head">
+            <mat-checkbox
+              [checked]="row.attached"
+              [disabled]="store.saving()"
+              (change)="toggleAttached(row, $event.checked)"
+            >
+              <span class="group-name">{{ row.group.name }}</span>
+            </mat-checkbox>
+
+            @if (row.attached) {
+              <span class="rule" [class.override]="row.overridden">
+                {{ summarise(row.rule) }}
+              </span>
+            }
+          </div>
+
+          @if (row.attached) {
+            <div class="group-body">
+              <p class="source">
+                @if (row.overridden) {
+                  <mat-icon>tune</mat-icon>
+                  <span>
+                    Changed for this dish. The group itself says
+                    <em>{{ describe(row.groupRule) }}</em
+                    >.
+                  </span>
+                } @else {
+                  <mat-icon>link</mat-icon>
+                  <span>Same as the group. Changing the group changes this dish too.</span>
+                }
+              </p>
+
+              @if (editingOverride() === row.group.id) {
+                <app-rule-picker legend="Just for this dish" [(rule)]="draftRule" />
+
+                @if (overrideResult(); as result) {
+                  <p class="resolved" [class.warn]="limitCannotBeRemoved()">
+                    <mat-icon>{{ limitCannotBeRemoved() ? 'info' : 'check' }}</mat-icon>
+                    <span>
+                      This dish will show <strong>{{ describe(result) }}</strong
+                      >.
+                      @if (limitCannotBeRemoved()) {
+                        A dish can lower the group's limit but not remove it, so the group's maximum
+                        of {{ row.groupRule.maxSelect }} still applies. Raise it on the group itself
+                        if that is not what you want.
+                      }
+                    </span>
+                  </p>
+                }
+
+                <div class="override-actions">
+                  <button matButton (click)="cancelOverride()">Cancel</button>
+                  <button
+                    matButton="filled"
+                    [disabled]="store.saving()"
+                    (click)="saveOverride(row)"
+                  >
+                    Save for this dish
+                  </button>
+                </div>
+              } @else {
+                <div class="override-actions">
+                  <button matButton [disabled]="store.saving()" (click)="startOverride(row)">
+                    <mat-icon>tune</mat-icon>
+                    {{ row.overridden ? 'Change' : 'Set a different rule for this dish' }}
+                  </button>
+                  @if (row.overridden) {
+                    <button matButton [disabled]="store.saving()" (click)="clearOverride(row)">
+                      Use the group's rule
+                    </button>
+                  }
+                </div>
+              }
+
+              @if (row.group.options.length > 0) {
+                <ul class="choices">
+                  @for (option of row.group.options; track option.id) {
+                    <li [class.unavailable]="!option.isAvailable">
+                      <span>{{ option.name }}</span>
+                      <span class="delta">
+                        @if (option.priceDeltaUsd === 0) {
+                          Free
+                        } @else {
+                          {{ option.priceDeltaUsd > 0 ? '+' : ''
+                          }}{{ option.priceDeltaUsd | currency: 'USD' }}
+                        }
+                      </span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="no-choices">This group has no choices in it yet.</p>
+              }
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <!-- Every change here is already saved; there is nothing to confirm on the way out. -->
+  <button matButton="filled" mat-dialog-close>Done</button>
+</mat-dialog-actions>

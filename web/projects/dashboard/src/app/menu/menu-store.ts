@@ -1,13 +1,19 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
+  AttachedOptionGroupResponse,
+  AttachOptionGroupRequest,
   CategoryResponse,
   CreateMenuItemRequest,
+  CreateOptionRequest,
   FileParameter,
   MenuItemResponse,
+  OptionGroupResponse,
   RestaurantCategoriesClient,
   RestaurantMenuItemsClient,
+  RestaurantOptionGroupsClient,
   describeError,
 } from 'api-client';
+import { SelectionRule } from './selection-rule';
 import { firstValueFrom } from 'rxjs';
 
 /** A category together with the items filed under it, which is how the editor draws the menu. */
@@ -31,12 +37,15 @@ export interface MenuSection {
 export class MenuStore {
   private readonly categoriesClient = inject(RestaurantCategoriesClient);
   private readonly itemsClient = inject(RestaurantMenuItemsClient);
+  private readonly groupsClient = inject(RestaurantOptionGroupsClient);
 
   private readonly categoriesSignal = signal<readonly CategoryResponse[]>([]);
   private readonly itemsSignal = signal<readonly MenuItemResponse[]>([]);
+  private readonly groupsSignal = signal<readonly OptionGroupResponse[]>([]);
 
   readonly categories = this.categoriesSignal.asReadonly();
   readonly items = this.itemsSignal.asReadonly();
+  readonly optionGroups = this.groupsSignal.asReadonly();
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -68,14 +77,16 @@ export class MenuStore {
     this.error.set(null);
 
     try {
-      // Both at once: they are independent reads and the screen needs both before it can draw.
-      const [categories, items] = await Promise.all([
+      // All at once: independent reads, and the screen needs them before it can draw.
+      const [categories, items, groups] = await Promise.all([
         firstValueFrom(this.categoriesClient.list()),
         firstValueFrom(this.itemsClient.list()),
+        firstValueFrom(this.groupsClient.list()),
       ]);
 
       this.categoriesSignal.set(categories);
       this.itemsSignal.set(items);
+      this.groupsSignal.set(groups);
     } catch (error) {
       this.error.set(describeError(error, 'Could not load the menu.'));
     } finally {
@@ -274,6 +285,103 @@ export class MenuStore {
 
   private replaceItem(updated: MenuItemResponse): void {
     this.itemsSignal.update((current) => current.map((i) => (i.id === updated.id ? updated : i)));
+  }
+
+  // ------------------------------------------------------------------ option groups
+
+  async createOptionGroup(name: string, rule: SelectionRule): Promise<boolean> {
+    const sortOrder = highestSortOrder(this.groupsSignal()) + 1;
+
+    return this.write('Could not add the option group.', async () => {
+      const created = await firstValueFrom(
+        this.groupsClient.create({
+          name,
+          minSelect: rule.minSelect,
+          maxSelect: rule.maxSelect ?? undefined,
+          sortOrder,
+        }),
+      );
+      this.groupsSignal.update((current) => [...current, created]);
+    });
+  }
+
+  async updateOptionGroup(
+    group: OptionGroupResponse,
+    changes: { name?: string; rule?: SelectionRule },
+  ): Promise<boolean> {
+    return this.write('Could not save the option group.', async () => {
+      const rule = changes.rule;
+
+      const updated = await firstValueFrom(
+        this.groupsClient.update(group.id, {
+          name: changes.name ?? group.name,
+          minSelect: rule ? rule.minSelect : group.minSelect,
+          maxSelect: rule ? (rule.maxSelect ?? undefined) : group.maxSelect,
+          sortOrder: group.sortOrder,
+        }),
+      );
+
+      // The update response carries the group without its options, so the ones already loaded
+      // are kept rather than blanking the list every time a name is corrected.
+      this.replaceGroup({ ...updated, options: updated.options ?? group.options });
+    });
+  }
+
+  async addOption(group: OptionGroupResponse, request: CreateOptionRequest): Promise<boolean> {
+    return this.write('Could not add the option.', async () => {
+      const created = await firstValueFrom(this.groupsClient.addOption(group.id, request));
+      this.replaceGroup({ ...group, options: [...group.options, created] });
+    });
+  }
+
+  async updateOption(
+    group: OptionGroupResponse,
+    optionId: string,
+    request: CreateOptionRequest & { isAvailable: boolean },
+  ): Promise<boolean> {
+    return this.write('Could not save the option.', async () => {
+      const updated = await firstValueFrom(this.groupsClient.updateOption(optionId, request));
+      this.replaceGroup({
+        ...group,
+        options: group.options.map((o) => (o.id === optionId ? updated : o)),
+      });
+    });
+  }
+
+  // ------------------------------------------------------------------ groups on an item
+
+  /**
+   * The groups attached to one item, loaded on demand.
+   *
+   * Not held in the store: it belongs to whichever item is open, and caching it would mean
+   * showing a stale set the next time somebody edited a different dish. Returns null on failure,
+   * with the reason already in {@link error}.
+   */
+  async loadItemOptionGroups(
+    itemId: string,
+  ): Promise<readonly AttachedOptionGroupResponse[] | null> {
+    try {
+      return await firstValueFrom(this.itemsClient.listOptionGroups(itemId));
+    } catch (error) {
+      this.error.set(describeError(error, "Could not load this item's options."));
+      return null;
+    }
+  }
+
+  async attachOptionGroup(itemId: string, request: AttachOptionGroupRequest): Promise<boolean> {
+    return this.write('Could not attach the option group.', async () => {
+      await firstValueFrom(this.itemsClient.attachOptionGroup(itemId, request));
+    });
+  }
+
+  async detachOptionGroup(itemId: string, optionGroupId: string): Promise<boolean> {
+    return this.write('Could not remove the option group.', async () => {
+      await firstValueFrom(this.itemsClient.detachOptionGroup(itemId, optionGroupId));
+    });
+  }
+
+  private replaceGroup(updated: OptionGroupResponse): void {
+    this.groupsSignal.update((current) => current.map((g) => (g.id === updated.id ? updated : g)));
   }
 
   /**
