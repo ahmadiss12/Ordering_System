@@ -47,3 +47,9 @@
     margin: 0;
   }
 }
+
+// mat-card-title supplies the type scale; this only stops the browser's own h2 margin from
+// pushing the subtitle away.
+h2[mat-card-title] {
+  margin: 0;
+}

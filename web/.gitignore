@@ -42,3 +42,10 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Playwright output. Reports and traces are per-run artifacts, not source; CI uploads them
+# rather than committing them.
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache

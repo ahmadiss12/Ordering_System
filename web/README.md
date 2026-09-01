@@ -41,6 +41,40 @@ CI runs the suite for every project that has one. If you add specs to a project,
 `Test` step in [`ci.yml`](../.github/workflows/ci.yml) — a project that is never named is a
 project whose tests never run.
 
+## End-to-end tests
+
+A real browser against the real API and a real database. These are the only tests that prove the
+pieces are joined — that a dish typed into the dashboard reaches a table and comes back on the
+public menu.
+
+They need the API running first, because Playwright can wait for a port but not for "migrations
+applied and seeded":
+
+```bash
+# once, from the repository root
+dotnet run --project api/src/OrderingSystem.Api -- --seed
+dotnet run --project api/src/OrderingSystem.Api --urls http://localhost:5080
+
+# then, from web/
+npm run e2e          # headless
+npm run e2e:ui       # the Playwright UI, for writing them
+```
+
+Playwright starts the Angular dev server itself and reuses one already running.
+
+**On a machine that already has Chromium** — a dev container, usually — Playwright may want a
+different revision than the one installed. Point it at what is there instead of downloading:
+
+```bash
+export PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium
+```
+
+CI leaves that unset and installs its own, so the pipeline is not tied to any one machine.
+
+A note on the data: these tests share one database and clean up after themselves, except for
+option groups, which have no delete endpoint. CI starts from an empty database every run, so
+this only shows up locally as a few leftover `E2E Group …` rows.
+
 ## Regenerating the API client
 
 `api-client` is generated from the API's OpenAPI document. After changing a controller or a DTO:

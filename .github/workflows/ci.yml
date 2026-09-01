@@ -167,6 +167,110 @@ jobs:
           npx ng test auth --watch=false
           npx ng test ui --watch=false
 
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # A real database, because the point of these tests is that the pieces are joined. The other
+    # suites already prove each piece on its own; only this one proves a dish typed into the
+    # dashboard reaches a table and comes back on the public menu.
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Your_Strong_Passw0rd
+        ports:
+          - 1433:1433
+
+    env:
+      # Spelled out rather than referenced from a variable: the env context is not dependable
+      # inside a services block, and a pipeline that fails on its first run is worse than a
+      # repeated literal. The database lives for one job and is destroyed with it.
+      ConnectionStrings__Default: "Server=localhost,1433;Database=OrderingSystem;User Id=sa;Password=Your_Strong_Passw0rd;TrustServerCertificate=True;Encrypt=True"
+      # Not a secret: this database exists for the length of one job and is thrown away with it.
+      # The real key comes from configuration per environment, and appsettings.json ships empty.
+      Jwt__SigningKey: "ci-only-end-to-end-signing-key-not-a-secret-32+"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      # Only Chromium. Three browsers would triple the slowest job in the pipeline to catch
+      # rendering differences these tests do not look at.
+      - name: Install the browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      # The image has no healthcheck, so the port opening is the signal to wait for.
+      - name: Wait for SQL Server
+        run: |
+          for i in $(seq 1 60); do
+            if (echo > /dev/tcp/127.0.0.1/1433) 2>/dev/null; then
+              echo "SQL Server is accepting connections"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::SQL Server did not start within two minutes"
+          exit 1
+
+      # Migrations and demo data, then it exits. The API does not seed itself on startup - a
+      # seeder that runs itself eventually runs somewhere it should not.
+      - name: Create and seed the database
+        run: dotnet run --project api/src/OrderingSystem.Api --no-launch-profile -- --seed
+
+      - name: Start the API
+        run: |
+          dotnet run --project api/src/OrderingSystem.Api --no-launch-profile \
+            --urls http://localhost:5080 > /tmp/api.log 2>&1 &
+          for i in $(seq 1 60); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5080/health)" = "200" ]; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::The API did not become healthy"
+          cat /tmp/api.log
+          exit 1
+
+      # Playwright starts the Angular dev server itself; see webServer in playwright.config.ts.
+      - name: Run the end-to-end tests
+        working-directory: web
+        run: npx playwright test
+
+      - name: Upload the report when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7
+
+      - name: Upload the API log when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log
+          path: /tmp/api.log
+          retention-days: 7
+
   contract:
     name: API client is current
     runs-on: ubuntu-latest

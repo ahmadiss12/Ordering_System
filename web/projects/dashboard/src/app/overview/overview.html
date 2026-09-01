@@ -25,7 +25,7 @@
     @for (r of restaurants(); track r.id) {
       <mat-card appearance="outlined">
         <mat-card-header>
-          <mat-card-title>{{ r.name }}</mat-card-title>
+          <h2 mat-card-title>{{ r.name }}</h2>
           <mat-card-subtitle>/{{ r.slug }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
