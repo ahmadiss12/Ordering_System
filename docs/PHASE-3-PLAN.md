@@ -82,7 +82,7 @@ row that already exists. It only worked while the cart itself was new, because c
 parent are new too. And emptying a cart came back reporting the lines it had just removed,
 because the response was built from the tracked graph rather than from the database.
 
-### Step 3 — Pricing
+### Step 3 — Pricing ✅
 
 One place that computes a total, on the server, and a quote endpoint so the client can show the
 same number before committing. The client never sends a price.
@@ -90,6 +90,19 @@ same number before committing. The client never sends a price.
 Subtotal from lines and option deltas, delivery fee from the zone, commission for the platform's
 books, promised time from the restaurant's prep minutes. Tax stays zero — the column exists for
 the day Lebanese VAT applies.
+
+**Rules decided here, each one a business choice rather than arithmetic:**
+
+| Rule | Choice | Why |
+|---|---|---|
+| Commission base | **Food only**, not the delivery fee | Charging commission on the fee would bill the restaurant for the courier |
+| Rounding | Two places, **halves away from zero** | Banker's rounding is right for statistics and wrong on a receipt a customer adds up by hand |
+| Minimum order | Measured against the **subtotal** | A delivery fee carrying somebody over the minimum would make the minimum meaningless |
+| Promised time | Prep + travel, then a **10-minute window** | A promise to the minute is one no kitchen keeps and every customer judges it by |
+| Lebanese pounds | **Whole**, at the rate in force; null when no rate is set | No smaller unit is in circulation, and an invented rate is worse than no figure |
+
+A below-minimum basket still gets a quote, with the shortfall named. Refusing to price it would
+leave the screen unable to say how much more is needed.
 
 ### Step 4 — Checkout
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderingSystem.Application.Features.Cart;
+using OrderingSystem.Domain.Enums;
 
 namespace OrderingSystem.Api.Controllers;
 
@@ -22,6 +23,25 @@ public sealed class CartController(CartService cart) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CartResponse>> Get(Guid restaurantId, CancellationToken ct) =>
         Ok(await cart.GetAsync(restaurantId, ct));
+
+    /// <summary>
+    /// What this basket would cost, without committing to it.
+    /// <para>
+    /// A GET because it changes nothing, and because the storefront asks for it again every time
+    /// the customer switches between delivery and pickup or picks a different address.
+    /// </para>
+    /// </summary>
+    [HttpGet("quote")]
+    [ProducesResponseType<QuoteResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<QuoteResponse>> Quote(
+        Guid restaurantId,
+        [FromQuery] FulfillmentType fulfillment,
+        [FromQuery] Guid? addressId,
+        CancellationToken ct) =>
+        Ok(await cart.QuoteAsync(restaurantId, fulfillment, addressId, ct));
 
     [HttpPost("lines")]
     [ProducesResponseType<CartResponse>(StatusCodes.Status200OK)]

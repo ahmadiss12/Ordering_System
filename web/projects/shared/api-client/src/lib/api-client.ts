@@ -472,6 +472,12 @@ export interface ICartClient {
      */
     clear(restaurantId: string): Observable<CartResponse>;
     /**
+     * @param fulfillment (optional) 
+     * @param addressId (optional) 
+     * @return OK
+     */
+    quote(restaurantId: string, fulfillment?: number | undefined, addressId?: string | undefined): Observable<QuoteResponse>;
+    /**
      * @return OK
      */
     addLine(restaurantId: string, body: AddCartLineRequest): Observable<CartResponse>;
@@ -601,6 +607,87 @@ export class CartClient implements ICartClient {
             let result200: any = null;
             result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CartResponse;
             return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    /**
+     * @param fulfillment (optional) 
+     * @param addressId (optional) 
+     * @return OK
+     */
+    quote(restaurantId: string, fulfillment?: number | undefined, addressId?: string | undefined): Observable<QuoteResponse> {
+        let url_ = this.baseUrl + "/api/restaurants/{restaurantId}/cart/quote?";
+        if (restaurantId === undefined || restaurantId === null)
+            throw new globalThis.Error("The parameter 'restaurantId' must be defined.");
+        url_ = url_.replace("{restaurantId}", encodeURIComponent("" + restaurantId));
+        if (fulfillment === null)
+            throw new globalThis.Error("The parameter 'fulfillment' cannot be null.");
+        else if (fulfillment !== undefined)
+            url_ += "fulfillment=" + encodeURIComponent("" + fulfillment) + "&";
+        if (addressId === null)
+            throw new globalThis.Error("The parameter 'addressId' cannot be null.");
+        else if (addressId !== undefined)
+            url_ += "addressId=" + encodeURIComponent("" + addressId) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processQuote(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processQuote(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<QuoteResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<QuoteResponse>;
+        }));
+    }
+
+    protected processQuote(response: HttpResponseBase): Observable<QuoteResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as QuoteResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 400) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            }));
+        } else if (status === 404) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            }));
+        } else if (status === 409) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result409: any = null;
+            result409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Conflict", status, _responseText, _headers, result409);
             }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
@@ -2519,6 +2606,27 @@ export interface ProblemDetails {
     status?: number | undefined;
     detail?: string | undefined;
     instance?: string | undefined;
+
+    [key: string]: any;
+}
+
+export interface QuoteResponse {
+    restaurantId: string;
+    fulfillment: number;
+    itemCount: number;
+    subtotalUsd: number;
+    deliveryFeeUsd: number;
+    taxUsd: number;
+    discountUsd: number;
+    totalUsd: number;
+    totalLbp: number | undefined;
+    promisedMinutesMin: number;
+    promisedMinutesMax: number;
+    minOrderUsd: number;
+    meetsMinimum: boolean;
+    shortfallUsd: number;
+    hasUnavailableItems: boolean;
+    deliveryZoneName: string | undefined;
 
     [key: string]: any;
 }

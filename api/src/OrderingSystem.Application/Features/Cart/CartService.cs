@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Domain.Carts;
 using OrderingSystem.Domain.Exceptions;
+using OrderingSystem.Domain.Enums;
 using OrderingSystem.Domain.Menu;
+using OrderingSystem.Domain.Orders;
 
 namespace OrderingSystem.Application.Features.Cart;
 
@@ -157,6 +159,126 @@ public sealed class CartService(IAppDbContext db, ITenantGuard guard, IValidatio
         return await ProjectAsync(cart.Id, restaurantId, ct);
     }
 
+    // ------------------------------------------------------------------ what it would cost
+
+    /// <summary>
+    /// Prices the basket without committing to anything.
+    ///
+    /// <para>
+    /// The same figures checkout will store, produced by the same calculation, so the number a
+    /// customer agrees to is the number they are charged. Nothing here writes.
+    /// </para>
+    /// </summary>
+    public async Task<QuoteResponse> QuoteAsync(
+        Guid restaurantId, FulfillmentType fulfillment, Guid? addressId, CancellationToken ct = default)
+    {
+        var userId = guard.RequireUserId();
+
+        var restaurant = await db.Restaurants.AsNoTracking()
+            .Where(r => r.Id == restaurantId && r.IsActive)
+            .Select(r => new { r.CommissionPercent, r.MinOrderUsd, r.DefaultPrepMinutes })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException("That restaurant is not taking orders.");
+
+        var cart = await db.Carts.AsNoTracking()
+            .Where(c => c.UserId == userId && c.RestaurantId == restaurantId)
+            .Select(c => (Guid?)c.Id)
+            .FirstOrDefaultAsync(ct);
+
+        var lines = cart is null ? [] : await PriceLinesAsync(cart.Value, ct);
+
+        // Only what can actually be ordered. Pricing a sold-out dish would quote a total the
+        // customer will not be charged.
+        var orderable = lines.Where(l => l.IsAvailable).ToList();
+
+        var delivery = await ResolveDeliveryAsync(restaurantId, fulfillment, addressId, userId, ct);
+
+        var price = OrderPricing.Calculate(new PricingInputs(
+            Lines: [.. orderable.Select(l => new PricedLine(l.UnitPriceUsd, l.Quantity))],
+            DeliveryFeeUsd: delivery.FeeUsd,
+            // No promo codes are in scope, so nothing can produce one yet. It is carried through
+            // the calculation rather than assumed away, so adding them later is one caller change.
+            DiscountUsd: 0m,
+            CommissionPercent: restaurant.CommissionPercent,
+            PrepMinutes: restaurant.DefaultPrepMinutes,
+            TravelMinutes: delivery.TravelMinutes,
+            MinOrderUsd: restaurant.MinOrderUsd,
+            ExchangeRateLbpPerUsd: await CurrentRateAsync(ct)));
+
+        return new QuoteResponse(
+            restaurantId,
+            fulfillment,
+            orderable.Sum(l => l.Quantity),
+            price.SubtotalUsd,
+            price.DeliveryFeeUsd,
+            price.TaxUsd,
+            price.DiscountUsd,
+            price.TotalUsd,
+            price.TotalLbp,
+            price.PromisedMinutesMin,
+            price.PromisedMinutesMax,
+            price.MinOrderUsd,
+            price.MeetsMinimum,
+            price.ShortfallUsd,
+            lines.Any(l => !l.IsAvailable),
+            delivery.ZoneName);
+    }
+
+    /// <summary>
+    /// The fee and travel time for this order, or a refusal a person can act on.
+    ///
+    /// Pickup costs nothing and travels nowhere. Delivery needs an address that is the caller's,
+    /// in a zone this restaurant actually serves — and "we do not deliver there" is a different
+    /// answer from "that address does not exist", so they are not collapsed.
+    /// </summary>
+    private async Task<(decimal FeeUsd, int TravelMinutes, string? ZoneName)> ResolveDeliveryAsync(
+        Guid restaurantId, FulfillmentType fulfillment, Guid? addressId, Guid userId, CancellationToken ct)
+    {
+        if (fulfillment == FulfillmentType.Pickup)
+        {
+            return (0m, 0, null);
+        }
+
+        if (addressId is null)
+        {
+            throw new ValidationFailedException(
+                "A delivery order needs an address.",
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["addressId"] = ["Choose where the order should go."],
+                });
+        }
+
+        var address = await db.Addresses.AsNoTracking()
+            .Where(a => a.Id == addressId && a.UserId == userId)
+            .Select(a => new { a.ZoneId, ZoneName = a.Zone.Name })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException("That address is not one of yours.");
+
+        var zone = await db.RestaurantZones.AsNoTracking()
+            .Where(z => z.RestaurantId == restaurantId && z.ZoneId == address.ZoneId && z.IsActive)
+            .Select(z => new { z.DeliveryFeeUsd, z.EstimatedMinutes })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new ConflictException($"This restaurant does not deliver to {address.ZoneName}.");
+
+        return (zone.DeliveryFeeUsd, zone.EstimatedMinutes, address.ZoneName);
+    }
+
+    /// <summary>
+    /// The rate in force now. Null when none has been set — the quote is still correct in
+    /// dollars, and a made-up rate would be worse than no pound figure at all.
+    /// </summary>
+    private async Task<decimal?> CurrentRateAsync(CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+
+        return await db.ExchangeRates.AsNoTracking()
+            .Where(r => r.EffectiveFrom <= now)
+            .OrderByDescending(r => r.EffectiveFrom)
+            .Select(r => (decimal?)r.RateLbpPerUsd)
+            .FirstOrDefaultAsync(ct);
+    }
+
     // ------------------------------------------------------------------ rules
 
     /// <summary>
@@ -286,22 +408,15 @@ public sealed class CartService(IAppDbContext db, ITenantGuard guard, IValidatio
     }
 
     /// <summary>
-    /// Reads the cart back from the database with today's prices.
+    /// The lines as they stand, priced from today's menu.
     ///
     /// <para>
-    /// Deliberately re-queries rather than projecting the tracked graph. Two reasons: the menu
-    /// data — names, prices, availability — is exactly what changes underneath a basket, and a
-    /// navigation collection still holds rows that were just deleted, which is how emptying a
-    /// cart came back reporting the lines it had removed.
+    /// One place, used by both the cart response and the quote. Two implementations of "what does
+    /// this line cost" is exactly how a basket badge and a checkout total come to disagree.
     /// </para>
     /// </summary>
-    private async Task<CartResponse> ProjectAsync(Guid cartId, Guid restaurantId, CancellationToken ct)
+    private async Task<IReadOnlyList<CartLineResponse>> PriceLinesAsync(Guid cartId, CancellationToken ct)
     {
-        var restaurant = await db.Restaurants.AsNoTracking()
-            .Where(r => r.Id == restaurantId)
-            .Select(r => new { r.Name, r.Slug })
-            .FirstAsync(ct);
-
         var stored = await db.CartLines.AsNoTracking()
             .Where(l => l.CartId == cartId)
             .Select(l => new { l.Id, l.MenuItemId, l.Quantity, l.Note })
@@ -342,8 +457,8 @@ public sealed class CartService(IAppDbContext db, ITenantGuard guard, IValidatio
                 .OrderBy(o => o.SortOrder)
                 .ToList();
 
-            var unitPrice = (item?.BasePriceUsd ?? 0m)
-                + chosen.Sum(o => o.PriceDeltaUsd * o.Quantity);
+            var unitPrice = OrderPricing.Round(
+                (item?.BasePriceUsd ?? 0m) + chosen.Sum(o => o.PriceDeltaUsd * o.Quantity));
 
             lines.Add(new CartLineResponse(
                 line.Id,
@@ -359,6 +474,28 @@ public sealed class CartService(IAppDbContext db, ITenantGuard guard, IValidatio
                     o.OptionId, o.GroupName, o.Name, o.Quantity, o.PriceDeltaUsd))]));
         }
 
+        return lines;
+    }
+
+    /// <summary>
+    /// Reads the cart back from the database with today's prices.
+    ///
+    /// <para>
+    /// Deliberately re-queries rather than projecting the tracked graph. Two reasons: the menu
+    /// data — names, prices, availability — is exactly what changes underneath a basket, and a
+    /// navigation collection still holds rows that were just deleted, which is how emptying a
+    /// cart came back reporting the lines it had removed.
+    /// </para>
+    /// </summary>
+    private async Task<CartResponse> ProjectAsync(Guid cartId, Guid restaurantId, CancellationToken ct)
+    {
+        var restaurant = await db.Restaurants.AsNoTracking()
+            .Where(r => r.Id == restaurantId)
+            .Select(r => new { r.Name, r.Slug })
+            .FirstAsync(ct);
+
+        var lines = await PriceLinesAsync(cartId, ct);
+
         return new CartResponse(
             cartId,
             restaurantId,
@@ -367,7 +504,7 @@ public sealed class CartService(IAppDbContext db, ITenantGuard guard, IValidatio
             lines.Sum(l => l.Quantity),
             // Only what can actually be ordered. Counting a sold-out dish would show a total the
             // customer will not be charged.
-            lines.Where(l => l.IsAvailable).Sum(l => l.LineTotalUsd),
+            OrderPricing.Round(lines.Where(l => l.IsAvailable).Sum(l => l.LineTotalUsd)),
             lines.Any(l => !l.IsAvailable),
             lines);
     }
