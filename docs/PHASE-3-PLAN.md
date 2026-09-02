@@ -104,7 +104,7 @@ the day Lebanese VAT applies.
 A below-minimum basket still gets a quote, with the shortfall named. Refusing to price it would
 leave the screen unable to say how much more is needed.
 
-### Step 4 — Checkout
+### Step 4 — Checkout ✅
 
 The step that turns a cart into an order, and the one with the most ways to fail:
 
@@ -117,6 +117,17 @@ The step that turns a cart into an order, and the one with the most ways to fail
 Each is a specific, readable refusal, not a generic 400. On success: allocate the daily order
 number, snapshot every name and price, write the first `OrderEvent`, empty the cart — in one
 transaction.
+
+**A Phase 1 feature nearly went unused.** `Order.IdempotencyKey` carries a unique index and a
+comment explaining that a double-tap on a poor connection should return the original order rather
+than placing a second. Nothing set it, so every order took `Guid.Empty` and the second one ever
+placed collided with the first. It is now part of the checkout request, required, and answered
+before any other check — by the time a repeat arrives the basket is empty, so asking "is your
+basket empty" first would tell a customer their order failed when it had succeeded.
+
+**Order numbers** read as `FRIESLAB-260902-042`: restaurant, day, and the count a kitchen shouts
+across a counter. Allocation is one `MERGE ... OUTPUT` with `HOLDLOCK`, because reading a counter
+and writing it back as two statements is how two customers on a Friday night get the same number.
 
 ### Step 5 — Order endpoints
 

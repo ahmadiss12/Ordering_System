@@ -6,6 +6,7 @@ using OrderingSystem.Application.Features.Auth;
 using OrderingSystem.Application.Features.Cart;
 using OrderingSystem.Application.Features.Catalog;
 using OrderingSystem.Application.Features.Menu;
+using OrderingSystem.Application.Features.Orders;
 
 namespace OrderingSystem.Application;
 
@@ -23,7 +24,9 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<CatalogService>();
         services.AddScoped<MenuAdminService>();
+        services.AddScoped<CartPricing>();
         services.AddScoped<CartService>();
+        services.AddScoped<CheckoutService>();
 
         return services;
     }

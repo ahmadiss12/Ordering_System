@@ -6,6 +6,7 @@ using OrderingSystem.Infrastructure.Email;
 using OrderingSystem.Infrastructure.Identity;
 using OrderingSystem.Infrastructure.Storage;
 using OrderingSystem.Infrastructure.Time;
+using OrderingSystem.Infrastructure.Orders;
 using OrderingSystem.Infrastructure.Persistence;
 using OrderingSystem.Infrastructure.Persistence.Seed;
 
@@ -54,6 +55,7 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+        services.AddScoped<IOrderNumberAllocator, SqlOrderNumberAllocator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         services.Configure<ImageStorageOptions>(configuration.GetSection(ImageStorageOptions.SectionName));
