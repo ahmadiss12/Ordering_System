@@ -9,9 +9,9 @@ whether the customer paid cash or online.
 **Status:** Phase 1 complete. Phase 2 in progress — menu API, image upload, Angular workspace,
 and a TypeScript client generated from the API's own OpenAPI document — toolchain, skeleton, solution, the 26
 entities, EF configuration, the initial migration, seed data, authentication, tenant
-isolation and CI, plus the public and staff menu APIs with image upload. 99 backend tests
-and 2 frontend tests pass. The database builds, the API
-starts, and there are three restaurants with real menus in it.
+isolation and CI, plus the public and staff menu APIs with image upload, a dashboard with a
+working menu editor, and end-to-end tests that drive it in a real browser. The database builds,
+the API starts, and there are three restaurants with real menus in it.
 
 ## Documentation
 
@@ -130,7 +130,9 @@ cd api
 dotnet test OrderingSystem.slnx
 ```
 
-93 tests:
+Deliberately no test count here. One went stale within a week and then disagreed with another
+count further up the same file, which is worse than no number at all — the CI badge is the
+honest answer to "does it pass".
 
 | Covers | Where | Needs Docker |
 |---|---|---|
@@ -147,14 +149,38 @@ dotnet test OrderingSystem.slnx
 | Opening hours, including windows past midnight | `Domain.Tests/Restaurants` | no |
 | Public catalogue: browse, menu, item detail | `Api.IntegrationTests/Menu` | yes |
 | Menu editing, and 403 across restaurants | `Api.IntegrationTests/Menu` | yes |
+| Token refresh, sharing one exchange across requests | `web` — `auth` library | no |
+| The login screen, guards and the shell's role split | `web` — `dashboard` | no |
+| The menu store, item form and selection rules | `web` — `dashboard` | no |
+| Sign in, add a dish, see it on the public menu | `web/e2e` — Playwright | yes |
 
 The integration tests start a real SQL Server per run through Testcontainers. The EF in-memory
 provider is deliberately not used: it enforces no unique index, no check constraint and no
 concurrency token, so those tests would pass whether the code was right or wrong.
 
-CI runs the same commands on every push, plus `dotnet list package --vulnerable`, which is how a
+The front end has its own suites, which need Node rather than Docker:
+
+```bash
+cd web
+npm ci
+npx ng test dashboard --watch=false   # and storefront, auth, ui
+npm run e2e                           # Playwright, needs the API running - see web/README.md
+```
+
+CI runs all of these on every push, plus `dotnet list package --vulnerable`, which is how a
 newly disclosed advisory in a package we already depend on becomes visible rather than waiting
 for someone to notice.
+
+### If a test fails only on your machine
+
+Almost always one of three things, in order of likelihood:
+
+- **Docker is not running.** Everything marked "needs Docker" above fails at once, with a
+  connection error rather than an assertion.
+- **Node is too old.** The Angular CLI refuses to start rather than misbehaving; `nvm use` in
+  `web/` reads the pinned version from `.nvmrc`.
+- **Line endings.** Fixed by `.gitattributes`, but a clone made before it existed still has CRLF
+  on disk. `git rm --cached -r . && git reset --hard` re-checks-out with the right endings.
 
 ## The generated API client
 

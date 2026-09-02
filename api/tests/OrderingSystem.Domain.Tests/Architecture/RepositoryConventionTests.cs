@@ -83,6 +83,21 @@ public class RepositoryConventionTests
     }
 
     [Fact]
+    public void Line_endings_are_decided_by_the_repository_not_the_machine()
+    {
+        // .editorconfig says end_of_line = lf, but that only instructs editors. Without this
+        // file, git on Windows checks everything out as CRLF (core.autocrlf defaults to true),
+        // and anything that reads a file and matches on line structure behaves differently
+        // there than in CI - which is how a role-name test came to fail on every Windows clone
+        // while the badge stayed green.
+        var attributes = File.ReadAllText(RepoFile(".gitattributes"));
+
+        attributes.ShouldContain("text=auto", Case.Sensitive);
+        attributes.ShouldContain("eol=lf", Case.Sensitive,
+            "line endings must be normalised by git, not left to each machine's default");
+    }
+
+    [Fact]
     public void Uploaded_photos_are_not_committed()
     {
         // ImageStorageOptions.RootPath points inside the working tree, so every photo a developer
@@ -103,8 +118,15 @@ public class RepositoryConventionTests
         // enum, so the contract job cannot catch a rename here — this test is the only thing that
         // does. Without it, renaming a member leaves the dashboard silently drawing an empty menu
         // for every owner.
+        // Normalised on read. The regex below anchors with "$", which in .NET matches only
+        // immediately before "\n" — so on a CRLF checkout the "\r" sits between the comma and
+        // the anchor and nothing matches. That failed on every Windows clone while CI, which
+        // checks out LF, stayed green. .gitattributes now stops the CRLF arriving at all; this
+        // keeps the test from caring either way, because it is asserting about role names and
+        // not about line endings.
         var rolesTs = File.ReadAllText(RepoFile(Path.Combine(
-            "web", "projects", "shared", "auth", "src", "lib", "roles.ts")));
+            "web", "projects", "shared", "auth", "src", "lib", "roles.ts")))
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
 
         foreach (var name in Enum.GetNames<RoleType>())
         {

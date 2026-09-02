@@ -1,0 +1,26 @@
+# Line endings, decided here rather than by whatever each machine defaults to.
+#
+# .editorconfig already says end_of_line = lf, but that only instructs editors — it has no say
+# in what git writes on checkout. On Windows, core.autocrlf defaults to true, so every file
+# arrived with CRLF and a test that matched on "$" silently found nothing, on a machine where
+# CI could never reproduce it. This is the layer that actually enforces the rule.
+* text=auto eol=lf
+
+# Shell scripts are run by bash and must never carry CR, which becomes part of the last argument
+# on a line and produces errors that name a command with an invisible character in it.
+*.sh text eol=lf
+
+# Files git should never translate. text=auto detects most of these on its own; naming them
+# means a corrupted image can never be blamed on line-ending conversion.
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
