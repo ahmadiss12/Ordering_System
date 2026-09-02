@@ -43,7 +43,10 @@ public class DependencyRuleTests
             "Serilog",
         };
 
-        var offenders = typeof(Orders.Order).Assembly
+        // Fully qualified: relative to this namespace, "Orders" would resolve to the test
+        // project's own Orders folder once one exists, and typeof would stop naming the
+        // assembly this rule is actually about.
+        var offenders = typeof(OrderingSystem.Domain.Orders.Order).Assembly
             .GetReferencedAssemblies()
             .Select(a => a.Name ?? string.Empty)
             .Where(name => forbiddenPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)))

@@ -43,7 +43,7 @@ rejection, it is a cancellation, and it means something different in a report.
 
 ## 3. Steps
 
-### Step 1 — The order state machine
+### Step 1 — The order state machine ✅
 
 Pure domain, no database. One table of legal transitions, and the rules that guard them:
 who may make each move, which are terminal, which require a reason, which depend on whether the
@@ -52,6 +52,13 @@ order is delivery or pickup.
 `OrderStatus` already carries a comment promising this exists in one place. It does not yet.
 Everything after this step depends on it, so it goes first and gets tested hardest — this is the
 file where a missing row means a delivered order can be cancelled.
+
+**Left open by this step.** A restaurant that accepts an order and then cannot fulfil it — a
+power cut, an ingredient gone — has no way out. `Rejected` is reachable only from `Placed`, and
+`Cancelled` belongs to the customer. The transition table says so deliberately rather than
+inventing a move the schema never described. It needs a decision before the kitchen queue in
+step 7 puts a button on a screen: either a restaurant-initiated cancellation from `Accepted` and
+`Preparing`, or an explicit answer that it stays a phone call.
 
 ### Step 2 — Cart
 
@@ -128,7 +135,7 @@ Answered the same way as Phase 2: taken, not asked, unless the answer changes wh
 | 1 | **Live updates: SignalR or polling?** | **SignalR.** A poll that is quick enough for a kitchen hammers the API all service; one that is gentle enough for the API misses orders. Falls back to polling on disconnect |
 | 2 | **Cart on the server or in the browser?** | **Server.** The tables exist for it, it survives switching devices, and pricing has to be server-side regardless — a browser cart would be recomputed on arrival anyway |
 | 3 | **What happens if a price changed while the cart sat?** | **Refuse the checkout and show what changed.** Silently charging the new price is the worst option; silently honouring the old one lets a stale tab set the price |
-| 4 | **Can a customer cancel after the restaurant accepts?** | **No.** Once accepted the food is being made. Cancellation stays open only while `Placed`, and a later change is a phone call, not a button |
+| 4 | **Can a customer cancel after the restaurant accepts?** | **Yes, until cooking starts.** This plan first said "only while Placed", which contradicted the `OrderStatus` enum written in Phase 1 — "Cancelled: only reachable from Placed or Accepted". The enum is right: *Accepted* means somebody saw the order, *Preparing* means food is being made, and that is the line worth drawing. Corrected in step 1 |
 | 5 | **Does stock get decremented?** | **No.** There is no stock model — `IsAvailable` is the switch a kitchen actually uses. Inventory is a different product |
 | 6 | **Mock payment now, or leave it?** | **Mock now, behind an interface.** Cash on delivery is the real Lebanese default and needs no gateway; the interface is what makes a processor a swap rather than a rewrite |
 
