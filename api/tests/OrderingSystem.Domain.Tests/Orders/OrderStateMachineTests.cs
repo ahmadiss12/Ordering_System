@@ -106,14 +106,17 @@ public class OrderStateMachineTests
     }
 
     [Fact]
-    public void Cancelling_needs_no_reason()
+    public void A_customer_changing_their_mind_needs_no_reason()
     {
-        // Only rejection feeds the report that makes a struggling restaurant visible. Demanding
-        // a reason from a customer would be a form standing between them and changing their mind.
+        // Whether a reason is required depends on who is asking, not only on where to: a
+        // restaurant dropping an order is reportable, a customer changing their mind is nobody's
+        // business, and a form standing between them and the button would be rude.
         var act = () => OrderStateMachine.EnsureAllowed(
             OrderStatus.Accepted, OrderStatus.Cancelled, FulfillmentType.Delivery, OrderActor.Customer);
 
         act.ShouldNotThrow();
+        OrderTransitions.RequiresReason(OrderStatus.Cancelled, OrderActor.Customer).ShouldBeFalse();
+        OrderTransitions.RequiresReason(OrderStatus.Cancelled, OrderActor.Restaurant).ShouldBeTrue();
     }
 
     [Fact]
@@ -127,14 +130,43 @@ public class OrderStateMachineTests
     }
 
     [Fact]
-    public void Cancelling_once_cooking_has_started_is_refused()
+    public void A_customer_cannot_cancel_once_cooking_has_started()
     {
-        // The line the whole cancellation rule is drawn at: Accepted means somebody saw it,
-        // Preparing means food is being made and somebody is out of pocket.
+        // The line the customer's cancellation right is drawn at: Accepted means somebody saw
+        // it, Preparing means food is being made and somebody is out of pocket.
         var act = () => OrderStateMachine.EnsureAllowed(
             OrderStatus.Preparing, OrderStatus.Cancelled, FulfillmentType.Delivery, OrderActor.Customer);
 
-        act.ShouldThrow<ConflictException>();
+        // A conflict rather than a 403: they could have done this a minute ago, so it is the
+        // state that changed and not their permissions.
+        var error = act.ShouldThrow<ConflictException>();
+        error.Message.ShouldContain("already being prepared");
+        error.Message.ShouldContain("Call the restaurant");
+    }
+
+    [Fact]
+    public void A_restaurant_can_back_out_of_an_order_it_already_accepted()
+    {
+        // The gap step 1 left open. Without this an order sits in Preparing forever when the
+        // power cuts, which is worse for everybody than a cancellation somebody can report on.
+        var act = () => OrderStateMachine.EnsureAllowed(
+            OrderStatus.Preparing, OrderStatus.Cancelled, FulfillmentType.Delivery,
+            OrderActor.Restaurant, RejectionReason.OutOfStock);
+
+        act.ShouldNotThrow();
+    }
+
+    [Fact]
+    public void A_restaurant_backing_out_must_say_why()
+    {
+        var act = () => OrderStateMachine.EnsureAllowed(
+            OrderStatus.Accepted, OrderStatus.Cancelled, FulfillmentType.Pickup, OrderActor.Restaurant);
+
+        // Same report as a rejection: a restaurant that keeps dropping accepted orders is
+        // exactly what the platform needs to be able to see.
+        var error = act.ShouldThrow<ValidationFailedException>();
+        error.Errors.ShouldContainKey("reason");
+        error.Message.ShouldContain("Cancelling");
     }
 
     // ------------------------------------------------------------------ what a screen asks
@@ -145,17 +177,27 @@ public class OrderStateMachineTests
         OrderTransitions.NextFor(OrderStatus.Placed, FulfillmentType.Delivery, OrderActor.Restaurant)
             .ShouldBe([OrderStatus.Accepted, OrderStatus.Rejected], ignoreOrder: true);
 
+        // Getting on with it, or backing out — both real once an order is accepted.
+        OrderTransitions.NextFor(OrderStatus.Accepted, FulfillmentType.Delivery, OrderActor.Restaurant)
+            .ShouldBe([OrderStatus.Preparing, OrderStatus.Cancelled], ignoreOrder: true);
+
         OrderTransitions.NextFor(OrderStatus.Preparing, FulfillmentType.Delivery, OrderActor.Restaurant)
-            .ShouldBe([OrderStatus.OutForDelivery]);
+            .ShouldBe([OrderStatus.OutForDelivery, OrderStatus.Cancelled], ignoreOrder: true);
 
         OrderTransitions.NextFor(OrderStatus.Preparing, FulfillmentType.Pickup, OrderActor.Restaurant)
-            .ShouldBe([OrderStatus.ReadyForPickup]);
+            .ShouldBe([OrderStatus.ReadyForPickup, OrderStatus.Cancelled], ignoreOrder: true);
+
+        // Once it is out of the building the kitchen only confirms the handover.
+        OrderTransitions.NextFor(OrderStatus.OutForDelivery, FulfillmentType.Delivery, OrderActor.Restaurant)
+            .ShouldBe([OrderStatus.Delivered]);
     }
 
     [Fact]
     public void A_customer_is_offered_cancelling_and_nothing_else()
     {
         OrderTransitions.NextFor(OrderStatus.Placed, FulfillmentType.Pickup, OrderActor.Customer)
+            .ShouldBe([OrderStatus.Cancelled]);
+        OrderTransitions.NextFor(OrderStatus.Accepted, FulfillmentType.Pickup, OrderActor.Customer)
             .ShouldBe([OrderStatus.Cancelled]);
 
         OrderTransitions.NextFor(OrderStatus.Preparing, FulfillmentType.Pickup, OrderActor.Customer)

@@ -462,6 +462,352 @@ export class AuthClient implements IAuthClient {
     }
 }
 
+export interface ICartClient {
+    /**
+     * @return OK
+     */
+    get(restaurantId: string): Observable<CartResponse>;
+    /**
+     * @return OK
+     */
+    clear(restaurantId: string): Observable<CartResponse>;
+    /**
+     * @return OK
+     */
+    addLine(restaurantId: string, body: AddCartLineRequest): Observable<CartResponse>;
+    /**
+     * @return OK
+     */
+    updateLine(restaurantId: string, lineId: string, body: UpdateCartLineRequest): Observable<CartResponse>;
+    /**
+     * @return OK
+     */
+    removeLine(restaurantId: string, lineId: string): Observable<CartResponse>;
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class CartClient implements ICartClient {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(restaurantId: string): Observable<CartResponse> {
+        let url_ = this.baseUrl + "/api/restaurants/{restaurantId}/cart";
+        if (restaurantId === undefined || restaurantId === null)
+            throw new globalThis.Error("The parameter 'restaurantId' must be defined.");
+        url_ = url_.replace("{restaurantId}", encodeURIComponent("" + restaurantId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGet(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGet(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CartResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CartResponse>;
+        }));
+    }
+
+    protected processGet(response: HttpResponseBase): Observable<CartResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CartResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 404) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    /**
+     * @return OK
+     */
+    clear(restaurantId: string): Observable<CartResponse> {
+        let url_ = this.baseUrl + "/api/restaurants/{restaurantId}/cart";
+        if (restaurantId === undefined || restaurantId === null)
+            throw new globalThis.Error("The parameter 'restaurantId' must be defined.");
+        url_ = url_.replace("{restaurantId}", encodeURIComponent("" + restaurantId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("delete", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processClear(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processClear(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CartResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CartResponse>;
+        }));
+    }
+
+    protected processClear(response: HttpResponseBase): Observable<CartResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CartResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    /**
+     * @return OK
+     */
+    addLine(restaurantId: string, body: AddCartLineRequest): Observable<CartResponse> {
+        let url_ = this.baseUrl + "/api/restaurants/{restaurantId}/cart/lines";
+        if (restaurantId === undefined || restaurantId === null)
+            throw new globalThis.Error("The parameter 'restaurantId' must be defined.");
+        url_ = url_.replace("{restaurantId}", encodeURIComponent("" + restaurantId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processAddLine(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processAddLine(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CartResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CartResponse>;
+        }));
+    }
+
+    protected processAddLine(response: HttpResponseBase): Observable<CartResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CartResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 400) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            }));
+        } else if (status === 409) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result409: any = null;
+            result409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    /**
+     * @return OK
+     */
+    updateLine(restaurantId: string, lineId: string, body: UpdateCartLineRequest): Observable<CartResponse> {
+        let url_ = this.baseUrl + "/api/restaurants/{restaurantId}/cart/lines/{lineId}";
+        if (restaurantId === undefined || restaurantId === null)
+            throw new globalThis.Error("The parameter 'restaurantId' must be defined.");
+        url_ = url_.replace("{restaurantId}", encodeURIComponent("" + restaurantId));
+        if (lineId === undefined || lineId === null)
+            throw new globalThis.Error("The parameter 'lineId' must be defined.");
+        url_ = url_.replace("{lineId}", encodeURIComponent("" + lineId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("put", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processUpdateLine(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processUpdateLine(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CartResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CartResponse>;
+        }));
+    }
+
+    protected processUpdateLine(response: HttpResponseBase): Observable<CartResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CartResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 404) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    /**
+     * @return OK
+     */
+    removeLine(restaurantId: string, lineId: string): Observable<CartResponse> {
+        let url_ = this.baseUrl + "/api/restaurants/{restaurantId}/cart/lines/{lineId}";
+        if (restaurantId === undefined || restaurantId === null)
+            throw new globalThis.Error("The parameter 'restaurantId' must be defined.");
+        url_ = url_.replace("{restaurantId}", encodeURIComponent("" + restaurantId));
+        if (lineId === undefined || lineId === null)
+            throw new globalThis.Error("The parameter 'lineId' must be defined.");
+        url_ = url_.replace("{lineId}", encodeURIComponent("" + lineId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("delete", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processRemoveLine(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processRemoveLine(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CartResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CartResponse>;
+        }));
+    }
+
+    protected processRemoveLine(response: HttpResponseBase): Observable<CartResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CartResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 404) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
 export interface IMenuItemsClient {
     /**
      * @return OK
@@ -1913,6 +2259,15 @@ export class RestaurantsClient implements IRestaurantsClient {
     }
 }
 
+export interface AddCartLineRequest {
+    menuItemId: string;
+    quantity: number;
+    note: string | undefined;
+    options: ChosenOptionRequest[];
+
+    [key: string]: any;
+}
+
 export interface AttachedOptionGroupResponse {
     optionGroupId: string;
     name: string;
@@ -1944,11 +2299,56 @@ export interface AuthTokensResponse {
     [key: string]: any;
 }
 
+export interface CartLineOptionResponse {
+    optionId: string;
+    groupName: string;
+    name: string;
+    quantity: number;
+    priceDeltaUsd: number;
+
+    [key: string]: any;
+}
+
+export interface CartLineResponse {
+    id: string;
+    menuItemId: string;
+    name: string;
+    imageUrl: string | undefined;
+    quantity: number;
+    note: string | undefined;
+    isAvailable: boolean;
+    unitPriceUsd: number;
+    lineTotalUsd: number;
+    options: CartLineOptionResponse[];
+
+    [key: string]: any;
+}
+
+export interface CartResponse {
+    id: string;
+    restaurantId: string;
+    restaurantName: string;
+    restaurantSlug: string;
+    itemCount: number;
+    subtotalUsd: number;
+    hasUnavailableItems: boolean;
+    lines: CartLineResponse[];
+
+    [key: string]: any;
+}
+
 export interface CategoryResponse {
     id: string;
     name: string;
     sortOrder: number;
     isActive: boolean;
+
+    [key: string]: any;
+}
+
+export interface ChosenOptionRequest {
+    optionId: string;
+    quantity: number;
 
     [key: string]: any;
 }
@@ -2190,6 +2590,13 @@ export interface RestaurantSummary {
 
 export interface SetAvailabilityRequest {
     isAvailable: boolean;
+
+    [key: string]: any;
+}
+
+export interface UpdateCartLineRequest {
+    quantity: number;
+    note: string | undefined;
 
     [key: string]: any;
 }

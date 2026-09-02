@@ -53,20 +53,34 @@ order is delivery or pickup.
 Everything after this step depends on it, so it goes first and gets tested hardest — this is the
 file where a missing row means a delivered order can be cancelled.
 
-**Left open by this step.** A restaurant that accepts an order and then cannot fulfil it — a
-power cut, an ingredient gone — has no way out. `Rejected` is reachable only from `Placed`, and
-`Cancelled` belongs to the customer. The transition table says so deliberately rather than
-inventing a move the schema never described. It needs a decision before the kitchen queue in
-step 7 puts a button on a screen: either a restaurant-initiated cancellation from `Accepted` and
-`Preparing`, or an explicit answer that it stays a phone call.
+**Decided during the step.** A restaurant that accepts and then cannot fulfil — a power cut, an
+ingredient gone — needed a way out; without one the order sits in `Preparing` forever, which is
+worse for everybody than a cancellation somebody can see. So a restaurant may cancel from
+`Accepted` and `Preparing`, and it must give a reason, because that is what the rejection-rate
+report counts.
 
-### Step 2 — Cart
+That made the reason rule depend on **who** is moving rather than only on where to. A restaurant
+dropping an order is reportable; a customer changing their mind is nobody's business, and a form
+between them and the button would be rude.
+
+It also improved a message. A customer asking to cancel a `Preparing` order now gets "this order
+is already being prepared … call the restaurant" as a conflict, rather than a 403 saying the move
+belongs to somebody else — true, but useless, since they could have done it a minute earlier.
+
+### Step 2 — Cart ✅
 
 Server-side, keyed by customer and restaurant, because the tables were designed that way and a
 cart that lives in one browser is lost the moment someone switches to their phone.
 
 Add a line with its chosen options, change a quantity, remove it, empty the cart. The **selection
 rules from Phase 2 are enforced here**: a group that says "choose 1" rejects a line with two.
+
+**Two bugs found by the tests, both real.** A new line added to an *existing* cart was silently
+marked as an update rather than an insert — EF decides the state of an entity it meets through a
+navigation by whether the key is already set, and a Guid key we generate ourselves looks like a
+row that already exists. It only worked while the cart itself was new, because children of a new
+parent are new too. And emptying a cart came back reporting the lines it had just removed,
+because the response was built from the tracked graph rather than from the database.
 
 ### Step 3 — Pricing
 

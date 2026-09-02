@@ -71,8 +71,9 @@ public static class OrderTransitions
         // --- the restaurant answers a new order -------------------------------------------
         new(OrderStatus.Placed, OrderStatus.Accepted, OrderActor.Restaurant, null),
 
-        // Refusing is only possible before accepting. Backing out afterwards is a different
-        // event with different consequences, and this system does not model it yet.
+        // Refusing is only possible before accepting. Backing out afterwards is a cancellation,
+        // not a rejection: the two mean different things in the rejection-rate report, and an
+        // order the kitchen already started costs somebody something.
         new(OrderStatus.Placed, OrderStatus.Rejected, OrderActor.Restaurant, null),
 
         // --- the customer changes their mind ----------------------------------------------
@@ -80,6 +81,13 @@ public static class OrderTransitions
         // order; Preparing means food is being made, and that is the point of no return.
         new(OrderStatus.Placed, OrderStatus.Cancelled, OrderActor.Customer, null),
         new(OrderStatus.Accepted, OrderStatus.Cancelled, OrderActor.Customer, null),
+
+        // A restaurant that accepts and then cannot deliver — a power cut, an ingredient gone.
+        // It happens, and without these two rows the order sits in Preparing forever, which is
+        // worse for everyone than a cancellation somebody can see and report on. It carries a
+        // reason for exactly that purpose.
+        new(OrderStatus.Accepted, OrderStatus.Cancelled, OrderActor.Restaurant, null),
+        new(OrderStatus.Preparing, OrderStatus.Cancelled, OrderActor.Restaurant, null),
 
         // --- the kitchen works ------------------------------------------------------------
         new(OrderStatus.Accepted, OrderStatus.Preparing, OrderActor.Restaurant, null),
@@ -100,11 +108,18 @@ public static class OrderTransitions
     public static bool IsTerminal(OrderStatus status) => Terminal.Contains(status);
 
     /// <summary>
-    /// Rejection carries a reason from a fixed list. Free text may accompany it and never
-    /// replaces it — the rejection-rate report is what makes a struggling restaurant visible,
-    /// and a report cannot group by a sentence somebody typed.
+    /// Whether this move must carry a reason from the fixed list.
+    ///
+    /// <para>
+    /// It depends on who is moving, not only on where to. A restaurant refusing an order or
+    /// backing out of one it accepted is what the rejection-rate report counts, and a report
+    /// cannot group by a sentence somebody typed. A customer changing their mind is nobody's
+    /// business but theirs, and a form standing between them and the button would be rude.
+    /// </para>
     /// </summary>
-    public static bool RequiresReason(OrderStatus to) => to == OrderStatus.Rejected;
+    public static bool RequiresReason(OrderStatus to, OrderActor by) =>
+        to == OrderStatus.Rejected
+        || (to == OrderStatus.Cancelled && by == OrderActor.Restaurant);
 
     /// <summary>
     /// What this party can do with this order right now. The dashboard draws its buttons from
@@ -162,7 +177,7 @@ public static class OrderTransitions
             return Refusal.NotYours;
         }
 
-        return RequiresReason(to) && !hasReason ? Refusal.ReasonRequired : Refusal.None;
+        return RequiresReason(to, by) && !hasReason ? Refusal.ReasonRequired : Refusal.None;
     }
 
     private static bool Applies(OrderTransition transition, FulfillmentType fulfillment) =>

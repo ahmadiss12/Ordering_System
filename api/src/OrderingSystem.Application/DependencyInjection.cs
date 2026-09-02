@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Application.Common;
 using OrderingSystem.Application.Features.Auth;
+using OrderingSystem.Application.Features.Cart;
 using OrderingSystem.Application.Features.Catalog;
 using OrderingSystem.Application.Features.Menu;
 
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<CatalogService>();
         services.AddScoped<MenuAdminService>();
+        services.AddScoped<CartService>();
 
         return services;
     }

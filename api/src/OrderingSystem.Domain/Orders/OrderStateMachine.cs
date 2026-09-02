@@ -59,6 +59,15 @@ public static class OrderStateMachine
                         ? "This is a pickup order, so it is collected rather than delivered."
                         : "This is a delivery order, so it is not collected from the counter.");
 
+            case Refusal.NotYours when to == OrderStatus.Cancelled && by == OrderActor.Customer:
+                // Technically the move belongs to somebody else, but that is not what happened
+                // from the customer's side: they could have cancelled this order a minute ago
+                // and now cannot. A 403 saying "not yours" would be true and useless; the state
+                // is what changed, so this is a conflict, and it says what to do instead.
+                throw new ConflictException(
+                    "This order is already being prepared, so it can no longer be cancelled here. "
+                    + "Call the restaurant if you need to stop it.");
+
             case Refusal.NotYours:
                 throw new ForbiddenException(
                     by == OrderActor.Customer
@@ -67,10 +76,14 @@ public static class OrderStateMachine
 
             case Refusal.ReasonRequired:
                 throw new ValidationFailedException(
-                    "A rejected order needs a reason.",
+                    to == OrderStatus.Rejected
+                        ? "A rejected order needs a reason."
+                        : "Cancelling an order the customer is waiting on needs a reason.",
                     new Dictionary<string, string[]>(StringComparer.Ordinal)
                     {
-                        ["reason"] = ["Choose why the order is being refused."],
+                        ["reason"] = to == OrderStatus.Rejected
+                            ? ["Choose why the order is being refused."]
+                            : ["Choose why the order cannot be completed."],
                     });
 
             default:

@@ -41,6 +41,13 @@ public class OrderTransitionTableTests
         (OrderStatus.Accepted, OrderStatus.Cancelled, OrderActor.Customer, FulfillmentType.Delivery),
         (OrderStatus.Accepted, OrderStatus.Cancelled, OrderActor.Customer, FulfillmentType.Pickup),
 
+        // A restaurant that accepted and then cannot deliver. Carries a reason, so it lands in
+        // the same report a rejection does.
+        (OrderStatus.Accepted, OrderStatus.Cancelled, OrderActor.Restaurant, FulfillmentType.Delivery),
+        (OrderStatus.Accepted, OrderStatus.Cancelled, OrderActor.Restaurant, FulfillmentType.Pickup),
+        (OrderStatus.Preparing, OrderStatus.Cancelled, OrderActor.Restaurant, FulfillmentType.Delivery),
+        (OrderStatus.Preparing, OrderStatus.Cancelled, OrderActor.Restaurant, FulfillmentType.Pickup),
+
         // The kitchen starts work.
         (OrderStatus.Accepted, OrderStatus.Preparing, OrderActor.Restaurant, FulfillmentType.Delivery),
         (OrderStatus.Accepted, OrderStatus.Preparing, OrderActor.Restaurant, FulfillmentType.Pickup),
@@ -114,7 +121,7 @@ public class OrderTransitionTableTests
             .ToHashSet();
 
         declared.ShouldBe(Expected, ignoreOrder: true);
-        OrderTransitions.All.Count.ShouldBe(9, "nine declared rows expand to fourteen concrete moves");
+        OrderTransitions.All.Count.ShouldBe(11, "eleven declared rows expand to eighteen concrete moves");
     }
 
     [Theory]
