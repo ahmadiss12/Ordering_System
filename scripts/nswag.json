@@ -39,7 +39,7 @@
       "queryNullValue": "",
       "inlineNamedDictionaries": false,
       "typeStyle": "Interface",
-      "enumStyle": "StringLiteral",
+      "enumStyle": "Enum",
       "useLeafType": false,
       "output": "../web/projects/shared/api-client/src/lib/api-client.ts",
       "operationGenerationMode": "MultipleClientsFromOperationId",

@@ -476,7 +476,7 @@ export interface ICartClient {
      * @param addressId (optional) 
      * @return OK
      */
-    quote(restaurantId: string, fulfillment?: number | undefined, addressId?: string | undefined): Observable<QuoteResponse>;
+    quote(restaurantId: string, fulfillment?: FulfillmentType | undefined, addressId?: string | undefined): Observable<QuoteResponse>;
     /**
      * @return OK
      */
@@ -621,7 +621,7 @@ export class CartClient implements ICartClient {
      * @param addressId (optional) 
      * @return OK
      */
-    quote(restaurantId: string, fulfillment?: number | undefined, addressId?: string | undefined): Observable<QuoteResponse> {
+    quote(restaurantId: string, fulfillment?: FulfillmentType | undefined, addressId?: string | undefined): Observable<QuoteResponse> {
         let url_ = this.baseUrl + "/api/restaurants/{restaurantId}/cart/quote?";
         if (restaurantId === undefined || restaurantId === null)
             throw new globalThis.Error("The parameter 'restaurantId' must be defined.");
@@ -2465,7 +2465,7 @@ export interface IRestaurantOrdersClient {
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: number[] | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
+    queue(status?: OrderStatus[] | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
 }
 
 @Injectable({
@@ -2487,7 +2487,7 @@ export class RestaurantOrdersClient implements IRestaurantOrdersClient {
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: number[] | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
+    queue(status?: OrderStatus[] | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
         let url_ = this.baseUrl + "/api/restaurant/orders?";
         if (status === null)
             throw new globalThis.Error("The parameter 'status' cannot be null.");
@@ -2850,17 +2850,17 @@ export interface CategoryResponse {
 }
 
 export interface ChangeOrderStatusRequest {
-    to: number;
-    reason: number | undefined;
+    to: OrderStatus;
+    reason: RejectionReason | undefined;
     note: string | undefined;
 
     [key: string]: any;
 }
 
 export interface CheckoutRequest {
-    fulfillment: number;
+    fulfillment: FulfillmentType;
     addressId: string | undefined;
-    paymentMethod: number;
+    paymentMethod: PaymentMethod;
     customerNote: string | undefined;
     expectedTotalUsd: number;
     idempotencyKey: string;
@@ -2910,6 +2910,16 @@ export interface CreateOptionRequest {
     [key: string]: any;
 }
 
+export enum DayOfWeek {
+    Sunday = 0,
+    Monday = 1,
+    Tuesday = 2,
+    Wednesday = 3,
+    Thursday = 4,
+    Friday = 5,
+    Saturday = 6,
+}
+
 export interface DeliveryAddressResponse {
     zoneName: string | undefined;
     line1: string | undefined;
@@ -2924,6 +2934,11 @@ export interface ForgotPasswordRequest {
     email: string;
 
     [key: string]: any;
+}
+
+export enum FulfillmentType {
+    Delivery = 1,
+    Pickup = 2,
 }
 
 export interface ItemOption {
@@ -3005,7 +3020,7 @@ export interface MenuItemSummary {
 }
 
 export interface OpeningWindow {
-    dayOfWeek: number;
+    dayOfWeek: DayOfWeek;
     openTime: string;
     closeTime: string;
 
@@ -3037,8 +3052,8 @@ export interface OptionResponse {
 export interface OrderDetailResponse {
     id: string;
     orderNumber: string;
-    status: number;
-    fulfillment: number;
+    status: OrderStatus;
+    fulfillment: FulfillmentType;
     placedAt: Date;
     restaurantName: string;
     restaurantSlug: string;
@@ -3050,24 +3065,24 @@ export interface OrderDetailResponse {
     discountUsd: number;
     totalUsd: number;
     totalLbp: number | undefined;
-    paymentMethod: number;
-    paymentStatus: number;
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
     promisedMinutesMin: number;
     promisedMinutesMax: number;
     customerNote: string | undefined;
-    rejectionReason: number | undefined;
+    rejectionReason: RejectionReason | undefined;
     rejectionNote: string | undefined;
     deliveryAddress: DeliveryAddressResponse | undefined;
     lines: OrderLineResponse[];
     events: OrderEventResponse[];
-    availableTransitions: number[];
+    availableTransitions: OrderStatus[];
 
     [key: string]: any;
 }
 
 export interface OrderEventResponse {
-    fromStatus: number | undefined;
-    toStatus: number;
+    fromStatus: OrderStatus | undefined;
+    toStatus: OrderStatus;
     changedBy: string | undefined;
     note: string | undefined;
     at: Date;
@@ -3096,11 +3111,22 @@ export interface OrderLineResponse {
     [key: string]: any;
 }
 
+export enum OrderStatus {
+    Placed = 1,
+    Accepted = 2,
+    Preparing = 3,
+    ReadyForPickup = 4,
+    OutForDelivery = 5,
+    Delivered = 6,
+    Rejected = 7,
+    Cancelled = 8,
+}
+
 export interface OrderSummaryResponse {
     id: string;
     orderNumber: string;
-    status: number;
-    fulfillment: number;
+    status: OrderStatus;
+    fulfillment: FulfillmentType;
     placedAt: Date;
     totalUsd: number;
     itemCount: number;
@@ -3133,19 +3159,31 @@ export interface PagedResultOfRestaurantSummary {
     [key: string]: any;
 }
 
+export enum PaymentMethod {
+    CashOnDelivery = 1,
+    Online = 2,
+}
+
+export enum PaymentStatus {
+    Pending = 1,
+    Paid = 2,
+    Failed = 3,
+    Refunded = 4,
+}
+
 export interface PlacedOrderResponse {
     id: string;
     orderNumber: string;
-    status: number;
-    fulfillment: number;
+    status: OrderStatus;
+    fulfillment: FulfillmentType;
     subtotalUsd: number;
     deliveryFeeUsd: number;
     totalUsd: number;
     totalLbp: number | undefined;
     promisedMinutesMin: number;
     promisedMinutesMax: number;
-    paymentMethod: number;
-    paymentStatus: number;
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
     placedAt: Date;
 
     [key: string]: any;
@@ -3163,7 +3201,7 @@ export interface ProblemDetails {
 
 export interface QuoteResponse {
     restaurantId: string;
-    fulfillment: number;
+    fulfillment: FulfillmentType;
     itemCount: number;
     subtotalUsd: number;
     deliveryFeeUsd: number;
@@ -3195,6 +3233,15 @@ export interface RegisterRequest {
     phone: string;
 
     [key: string]: any;
+}
+
+export enum RejectionReason {
+    OutOfStock = 1,
+    TooBusy = 2,
+    ClosingSoon = 3,
+    OutsideDeliveryArea = 4,
+    CustomerUnreachable = 5,
+    Other = 99,
 }
 
 export interface ResetPasswordRequest {

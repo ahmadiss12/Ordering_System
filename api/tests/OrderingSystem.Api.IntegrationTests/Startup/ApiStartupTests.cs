@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using OrderingSystem.Api.IntegrationTests.Auth;
+using OrderingSystem.Domain.Enums;
 
 namespace OrderingSystem.Api.IntegrationTests.Startup;
 
@@ -55,6 +56,52 @@ public sealed class ApiStartupTests(ApiFactory factory) : IClassFixture<ApiFacto
             paths.TryGetProperty(expected, out _).ShouldBeTrue($"{expected} must appear in the OpenAPI document");
         }
     }
+
+    [Fact]
+    public async Task Every_enum_in_the_document_carries_its_names()
+    {
+        // Without this the document says {"type": "integer"} and nothing more, so the generated
+        // TypeScript types every enum as `number` and a screen accepting an order posts { to: 2 }.
+        // A magic number is bad on its own; one that means something else after somebody
+        // renumbers the C# enum is a bug no build catches.
+        var response = await factory.CreateClient().GetAsync("/openapi/v1.json", Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+
+        var status = schemas.GetProperty(nameof(OrderStatus));
+
+        status.GetProperty("enum").EnumerateArray().Select(v => v.GetInt32())
+            .ShouldBe(Enum.GetValues<OrderStatus>().Select(v => (int)v));
+
+        // x-enumNames is the convention NSwag reads to emit a named TypeScript enum.
+        status.GetProperty("x-enumNames").EnumerateArray().Select(v => v.GetString())
+            .ShouldBe(Enum.GetNames<OrderStatus>());
+    }
+
+    [Fact]
+    public async Task No_enum_is_left_as_a_bare_integer()
+    {
+        // Named on purpose rather than checked one by one: the transformer runs over every enum
+        // the document mentions, so one arriving without names means it stopped running rather
+        // than that somebody forgot to list it here.
+        var response = await factory.CreateClient().GetAsync("/openapi/v1.json", Ct);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+
+        var bare = document.RootElement.GetProperty("components").GetProperty("schemas")
+            .EnumerateObject()
+            .Where(s => IsDomainEnum(s.Name))
+            .Where(s => !s.Value.TryGetProperty("x-enumNames", out _))
+            .Select(s => s.Name)
+            .ToArray();
+
+        bare.ShouldBeEmpty(
+            "these enums reach the client as a bare number: " + string.Join(", ", bare));
+    }
+
+    private static bool IsDomainEnum(string schemaName) =>
+        typeof(OrderStatus).Assembly.GetType($"OrderingSystem.Domain.Enums.{schemaName}")?.IsEnum == true;
 
     [Fact]
     public async Task An_unknown_route_returns_404_rather_than_an_error()

@@ -3163,7 +3163,25 @@
         }
       },
       "DayOfWeek": {
-        "type": "integer"
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "type": "integer",
+        "x-enumNames": [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday"
+        ]
       },
       "DeliveryAddressResponse": {
         "required": [
@@ -3219,7 +3237,15 @@
         }
       },
       "FulfillmentType": {
-        "type": "integer"
+        "enum": [
+          1,
+          2
+        ],
+        "type": "integer",
+        "x-enumNames": [
+          "Delivery",
+          "Pickup"
+        ]
       },
       "IFormFile": {
         "type": "string",
@@ -3977,7 +4003,27 @@
         }
       },
       "OrderStatus": {
-        "type": "integer"
+        "enum": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "type": "integer",
+        "x-enumNames": [
+          "Placed",
+          "Accepted",
+          "Preparing",
+          "ReadyForPickup",
+          "OutForDelivery",
+          "Delivered",
+          "Rejected",
+          "Cancelled"
+        ]
       },
       "OrderSummaryResponse": {
         "required": [
@@ -4143,10 +4189,30 @@
         }
       },
       "PaymentMethod": {
-        "type": "integer"
+        "enum": [
+          1,
+          2
+        ],
+        "type": "integer",
+        "x-enumNames": [
+          "CashOnDelivery",
+          "Online"
+        ]
       },
       "PaymentStatus": {
-        "type": "integer"
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "x-enumNames": [
+          "Pending",
+          "Paid",
+          "Failed",
+          "Refunded"
+        ]
       },
       "PlacedOrderResponse": {
         "required": [
@@ -4444,7 +4510,23 @@
         }
       },
       "RejectionReason": {
-        "type": "integer"
+        "enum": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          99
+        ],
+        "type": "integer",
+        "x-enumNames": [
+          "OutOfStock",
+          "TooBusy",
+          "ClosingSoon",
+          "OutsideDeliveryArea",
+          "CustomerUnreachable",
+          "Other"
+        ]
       },
       "ResetPasswordRequest": {
         "required": [

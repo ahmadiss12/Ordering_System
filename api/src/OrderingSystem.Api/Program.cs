@@ -21,7 +21,11 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi(options => options.AddOperationTransformer<OperationIdTransformer>());
+builder.Services.AddOpenApi(options =>
+{
+    options.AddOperationTransformer<OperationIdTransformer>();
+    options.AddSchemaTransformer<EnumNamesTransformer>();
+});
 
 // The live channel a kitchen screen listens on. See OrdersHub for why it has no client-callable
 // methods and why group membership comes from claims rather than from anything the client sends.
