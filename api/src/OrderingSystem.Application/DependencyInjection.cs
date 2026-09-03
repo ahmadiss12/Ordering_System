@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<CartService>();
         services.AddScoped<CheckoutService>();
         services.AddScoped<OrderQueryService>();
+        services.AddScoped<OrderTransitionService>();
 
         return services;
     }

@@ -124,11 +124,23 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
                 e.FromStatus, e.ToStatus, e.ChangedByUser!.FullName, e.Note, e.CreatedAt))
             .ToListAsync(ct);
 
-        // Which party is asking decides what they may do next. Staff at this restaurant act as
-        // the restaurant; anybody else looking at their own order acts as the customer.
-        var actor = tenant.RestaurantId == order.RestaurantId
-            ? OrderActor.Restaurant
-            : OrderActor.Customer;
+        // Which party is asking decides what they may do next, and one person can be both — a
+        // cook ordering their own lunch is staff and customer at once. Both sets are offered in
+        // that case, because OrderTransitionService accepts either from them, and a screen that
+        // drew fewer buttons than the API would honour would be quietly wrong.
+        var moves = new List<OrderStatus>();
+
+        if (tenant.RestaurantId == order.RestaurantId)
+        {
+            moves.AddRange(OrderTransitions.NextFor(
+                order.Status, order.FulfillmentType, OrderActor.Restaurant));
+        }
+
+        if (order.CustomerId == tenant.UserId)
+        {
+            moves.AddRange(OrderTransitions.NextFor(
+                order.Status, order.FulfillmentType, OrderActor.Customer));
+        }
 
         return new OrderDetailResponse(
             order.Id,
@@ -164,7 +176,7 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
                 : null,
             lines,
             events,
-            OrderTransitions.NextFor(order.Status, order.FulfillmentType, actor));
+            [.. moves.Distinct().Order()]);
     }
 
     private static async Task<PagedResult<OrderSummaryResponse>> PageAsync(

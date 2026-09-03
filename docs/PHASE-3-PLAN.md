@@ -129,7 +129,7 @@ basket empty" first would tell a customer their order failed when it had succeed
 across a counter. Allocation is one `MERGE ... OUTPUT` with `HOLDLOCK`, because reading a counter
 and writing it back as two statements is how two customers on a Friday night get the same number.
 
-### Step 5 — Order endpoints
+### Step 5 — Order endpoints ✅
 
 Reading and moving orders, with the tenant guard on every one.
 
@@ -155,7 +155,46 @@ placed at one in the morning still landing inside FriesLab's overnight window.
 Its UTC time deliberately stays real. Tokens are validated by the framework's own clock, which no
 test can move, so a UTC time hours away from the real one would make every request arrive expired.
 
-**5b — moving** comes next: accept, reject, advance, cancel, each one through the state machine.
+**5b — moving ✅.** Accept, reject, advance, cancel — each one through the state machine, each
+one appending an `OrderEvent` that records who did it, and both written in a single transaction so
+an order can never carry a status no entry explains.
+
+**One endpoint, not four.** `POST /api/orders/{id}/status` takes the status to move to, rather than
+offering `accept`, `reject`, `advance` and `cancel`. The transition table already decides what may
+follow what and who may do it; four named endpoints would be a second copy of that table, extended
+by hand every time a status is added. The detail endpoint hands a screen the moves it may make and
+the screen posts one of them straight back.
+
+**The route does not decide who is asking.** Customer and kitchen use the same endpoint, and which
+party they are is worked out from the order. That matters for the person who is both — a cook
+ordering their own lunch — where the *move* decides the hat: accepting is the restaurant's, and
+cancelling a placed order is the customer's, and one person may make either. Putting the party in
+the route would have made them pick a hat before pressing a button.
+
+**A restaurant's cancellation carries the same reason a rejection does**, in the same column. The
+rejection-rate report then asks one question — which orders carry a reason — and finds every order
+the restaurant dropped, whichever way it dropped it. A customer changing their mind sets nothing,
+which is what keeps them out of that report.
+
+**A reason on a move that does not take one is refused rather than dropped.** Accepting an order is
+not a refusal, and a reason recorded there would quietly make that report wrong. Silently discarding
+it would leave a client believing it had been kept.
+
+**Two tablets, one order.** The rowversion means the second write fails instead of both appearing to
+succeed, and the loser is told where the order actually is now rather than being handed a 500.
+Deleting that handling makes the concurrency test fail every run, so the race is genuinely happening
+rather than being serialised away by the database.
+
+**A bug from step 4, found by a sweep rather than by a failure.** Comparing every validator against
+its column turned up one that disagreed: a customer note was allowed 1000 characters and the column
+held 500, so a long note passed validation and then died in SQL Server on a truncation error — which
+reaches the customer as a 500 saying nothing, with their order not placed. Both are 500 now, and a
+test sends 501 characters and insists on a 400.
+
+**A limitation worth naming, not fixed here.** The query filter gives staff their restaurant's
+orders *instead of* their own, so a restaurant owner who orders from a different restaurant cannot
+see or cancel that order. It is the security boundary ADR-07 is built on, and widening it deserves
+its own review rather than a change made in passing during a step about something else.
 
 ### Step 6 — Live updates
 

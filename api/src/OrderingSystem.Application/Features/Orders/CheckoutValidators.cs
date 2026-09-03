@@ -8,7 +8,11 @@ public sealed class CheckoutRequestValidator : AbstractValidator<CheckoutRequest
     {
         RuleFor(r => r.Fulfillment).IsInEnum();
         RuleFor(r => r.PaymentMethod).IsInEnum();
-        RuleFor(r => r.CustomerNote).MaximumLength(1000);
+
+        // 500, matching the column. It said 1000 until a sweep compared every validator against
+        // its column: a 600-character note passed validation and then failed in SQL Server with a
+        // truncation error, which reaches the customer as a 500 with nothing to act on.
+        RuleFor(r => r.CustomerNote).MaximumLength(500);
 
         // Shape only. Whether it matches what the order actually costs is decided against a
         // freshly computed price, not here.

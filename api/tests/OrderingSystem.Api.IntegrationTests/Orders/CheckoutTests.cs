@@ -508,6 +508,27 @@ public sealed class CheckoutTests(ApiFactory factory) : IClassFixture<ApiFactory
         await ClearAsync(client, restaurant.Id);
     }
 
+    [Fact]
+    public async Task A_note_longer_than_the_column_is_refused_rather_than_truncated()
+    {
+        var client = await SignInAsync("rita@example.test");
+        var restaurant = await RestaurantAsync();
+        await StockBasketAsync(client, restaurant.Id, "Cheese Lab Fries", 2);
+
+        var quote = await QuoteAsync(client, restaurant.Id, "Pickup");
+        var response = await PostCheckoutAsync(client, restaurant.Id, new CheckoutRequest(
+            FulfillmentType.Pickup, null, PaymentMethod.CashOnDelivery, new string('x', 501),
+            quote.TotalUsd, Guid.NewGuid()));
+
+        // A 400 naming the field, not a 500 from SQL Server refusing to truncate. The validator
+        // allowed 1000 while the column held 500, so this was the latter until the two were
+        // lined up — a customer with a long note losing their order to an error saying nothing.
+        response.Status.ShouldBe(HttpStatusCode.BadRequest);
+        response.Body.ShouldContain("CustomerNote", Case.Insensitive);
+
+        await ClearAsync(client, restaurant.Id);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private async Task<HttpClient> SignInAsync(string email)

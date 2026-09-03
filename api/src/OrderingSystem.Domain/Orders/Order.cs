@@ -88,7 +88,13 @@ public class Order
 
     public string? CustomerNote { get; set; }
 
-    /// <summary>Required when <see cref="Status"/> is Rejected, null otherwise.</summary>
+    /// <summary>
+    /// Why the restaurant dropped the order. Required when <see cref="Status"/> is Rejected, and
+    /// also set when a restaurant cancels one it had already accepted — the same fixed list, so the
+    /// rejection-rate report can ask one question and get every order the restaurant dropped,
+    /// whichever way it dropped it. Null when the customer changed their mind, which keeps them
+    /// out of that report.
+    /// </summary>
     public RejectionReason? RejectionReason { get; set; }
 
     /// <summary>Optional detail alongside the reason. Never a substitute for it.</summary>
