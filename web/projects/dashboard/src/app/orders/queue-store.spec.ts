@@ -1,9 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import {
+  ChangeOrderStatusRequest,
   FulfillmentType,
+  MyOrdersClient,
+  OrderDetailResponse,
   OrderStatus,
   OrderSummaryResponse,
   PagedResultOfOrderSummaryResponse,
+  RejectionReason,
   RestaurantOrdersClient,
 } from 'api-client';
 import { LiveStatus, OrderStream } from 'realtime';
@@ -19,17 +23,20 @@ import { QueueStore } from './queue-store';
  */
 describe('QueueStore', () => {
   let client: FakeOrdersClient;
+  let moves: FakeMoveClient;
   let stream: FakeStream;
 
   beforeEach(() => {
     vi.useFakeTimers();
     client = new FakeOrdersClient();
+    moves = new FakeMoveClient();
     stream = new FakeStream();
 
     TestBed.configureTestingModule({
       providers: [
         QueueStore,
         { provide: RestaurantOrdersClient, useValue: client },
+        { provide: MyOrdersClient, useValue: moves },
         { provide: OrderStream, useValue: stream },
       ],
     });
@@ -146,6 +153,69 @@ describe('QueueStore', () => {
     expect(store.needingAttention()).toBe(2);
   });
 
+  // ------------------------------------------------------------------ pressing a button
+
+  it('sends the move and reloads the board', async () => {
+    client.returns([row({ id: 'a' })]);
+    const store = await created();
+
+    const ok = await store.move('a', OrderStatus.Accepted);
+    await settle();
+
+    expect(ok).toBe(true);
+    expect(moves.sent).toEqual([
+      { orderId: 'a', to: OrderStatus.Accepted, reason: undefined, note: undefined },
+    ]);
+
+    // The server pushes the change too, which would eventually refresh this board — but waiting
+    // for a socket round trip to redraw a button somebody just pressed feels broken.
+    expect(client.calls).toBe(2);
+  });
+
+  it('carries the reason and note when one was given', async () => {
+    client.returns([row({ id: 'a' })]);
+    const store = await created();
+
+    await store.move('a', OrderStatus.Rejected, RejectionReason.TooBusy, 'no fryer');
+    await settle();
+
+    expect(moves.sent[0]).toEqual({
+      orderId: 'a',
+      to: OrderStatus.Rejected,
+      reason: RejectionReason.TooBusy,
+      note: 'no fryer',
+    });
+  });
+
+  it('reports a refused move and still reloads', async () => {
+    client.returns([row({ id: 'a' })]);
+    const store = await created();
+
+    // The commonest failure by far: another tablet accepted it first. A refusal means this board
+    // was showing something stale, which is exactly when it most needs re-reading.
+    moves.fails();
+    const ok = await store.move('a', OrderStatus.Accepted);
+    await settle();
+
+    expect(ok).toBe(false);
+    expect(store.error()).not.toBeNull();
+    expect(client.calls).toBe(2);
+  });
+
+  it('marks only the order being moved as busy', async () => {
+    client.returns([row({ id: 'a' }), row({ id: 'b' })]);
+    const store = await created();
+
+    expect(store.moving()).toBeNull();
+
+    const inFlight = store.move('a', OrderStatus.Accepted);
+    expect(store.moving()).toBe('a');
+
+    await inFlight;
+    await settle();
+    expect(store.moving()).toBeNull();
+  });
+
   // ------------------------------------------------------------------ the clock
 
   it('turns an order late without anybody touching the server', async () => {
@@ -195,6 +265,9 @@ describe('QueueStore', () => {
       restaurantName: 'FriesLab',
       restaurantSlug: 'frieslab',
       customerName: 'Rita Customer',
+      // Empty on purpose: these tests are about grouping and urgency. What a card
+      // offers is order-actions.spec.ts.
+      availableTransitions: [],
     };
   }
 });
@@ -233,6 +306,31 @@ class FakeOrdersClient {
       totalPages: 1,
       hasNextPage: false,
     } as PagedResultOfOrderSummaryResponse);
+  }
+}
+
+/** Records what was asked of the move endpoint, which is the whole point of these four tests. */
+class FakeMoveClient {
+  readonly sent: {
+    orderId: string;
+    to: OrderStatus;
+    reason: RejectionReason | undefined;
+    note: string | undefined;
+  }[] = [];
+
+  private failing = false;
+
+  fails(): void {
+    this.failing = true;
+  }
+
+  changeStatus(orderId: string, body: ChangeOrderStatusRequest): Observable<OrderDetailResponse> {
+    if (this.failing) {
+      return throwError(() => new Error('somebody else moved it first'));
+    }
+
+    this.sent.push({ orderId, to: body.to, reason: body.reason, note: body.note });
+    return of({} as OrderDetailResponse);
   }
 }
 

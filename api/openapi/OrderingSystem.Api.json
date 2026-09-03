@@ -4038,7 +4038,8 @@
           "promisedMinutesMax",
           "restaurantName",
           "restaurantSlug",
-          "customerName"
+          "customerName",
+          "availableTransitions"
         ],
         "type": "object",
         "properties": {
@@ -4099,6 +4100,12 @@
           },
           "customerName": {
             "type": "string"
+          },
+          "availableTransitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderStatus"
+            }
           }
         }
       },

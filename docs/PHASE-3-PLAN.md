@@ -333,8 +333,43 @@ so a wrong one is a compile error, and a spec reads every `<mat-icon>` in every 
 checks it against the same list — with a guard test, because a regex that stops matching would
 otherwise leave the check passing on an empty set.
 
-**7b — acting on it** comes next: the buttons, drawn from each order's own available transitions,
-and the reason a refusal has to carry.
+**7b — acting on it ✅.** Every card carries the moves it may make, and pressing one is a single
+tap.
+
+**The buttons come from the API, not from the column.** Each queue row now carries its own
+`availableTransitions` — the same list the detail already returned, from the same transition
+table. Working them out on the screen would have been a second copy of the rule, and the first
+copy is the one the server enforces; a screen that guessed would draw a button that gets a 403.
+It costs the database nothing: it is a lookup in a frozen table, done after the query.
+
+**The board decides only the wording.** Accept, Refuse, Start cooking, Ready, Send out — and, in
+the one place wording depends on more than the status, "Collected" at a counter against
+"Delivered" at a door. Telling a pickup customer their order was delivered is a small lie a
+kitchen has to explain on the phone.
+
+**A refusal opens a form; nothing else does.** Which moves need a reason is the state machine's
+answer, not the screen's, and the fixed list is what the rejection-rate report groups by. The note
+beside it is always optional — asking a busy kitchen to write an essay is how you get "asdf".
+
+**A new order makes a noise.** Colour tells somebody what needs attention once they look; this is
+what makes them look, on a tablet propped across the room. Synthesised rather than played from a
+file: two hundred bytes instead of an asset to fetch over a Lebanese connection, and it cannot
+404. Browsers refuse audio until the page has been touched, so the toggle says "tap any order
+button once" rather than claiming to be on while the page is silent.
+
+**A bug the tests found, and a good one.** A refused press — another tablet accepted it first —
+set the error and then immediately reloaded the board, and a successful reload clears the error.
+The message vanished a heartbeat after appearing, so the person saw a button do nothing and was
+told nothing. The refusal is now set after the reload, deliberately, with a comment saying so.
+
+**Two more found by pressing the buttons in a browser.** The primary action was not filled: the
+appearance was bound through `attr.matButton`, which sets an HTML attribute Material never reads,
+so every button came out identically outlined and the common action stopped being findable. And a
+card that was late to be *answered* showed its promised time in red — saying the promise was blown
+when it had eleven minutes left.
+
+Verified against the running stack: Accept moved an order between columns, Refuse opened the
+dialog, and the reason chosen there — not the pre-selected one — is what landed on the order.
 
 ### Step 8 — Order history and detail
 

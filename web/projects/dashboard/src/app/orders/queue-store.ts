@@ -1,5 +1,12 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
-import { OrderSummaryResponse, RestaurantOrdersClient, describeError } from 'api-client';
+import {
+  MyOrdersClient,
+  OrderStatus,
+  OrderSummaryResponse,
+  RejectionReason,
+  RestaurantOrdersClient,
+  describeError,
+} from 'api-client';
 import { OrderStream } from 'realtime';
 import { firstValueFrom } from 'rxjs';
 import { COLUMNS, LIVE_STATUSES, QueueColumn, QueuedOrder, assess } from './queue-model';
@@ -37,6 +44,10 @@ const TICK_MS = 10_000;
 @Injectable()
 export class QueueStore {
   private readonly client = inject(RestaurantOrdersClient);
+
+  // Moving an order goes through the endpoint that serves both parties, which is where the state
+  // machine decides who may make which move. There is no kitchen-only version of it to call.
+  private readonly moveClient = inject(MyOrdersClient);
   private readonly stream = inject(OrderStream);
 
   private readonly ordersSignal = signal<readonly OrderSummaryResponse[]>([]);
@@ -45,6 +56,16 @@ export class QueueStore {
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+
+  /**
+   * The order a press is currently in flight for, or null.
+   *
+   * One at a time and by id, so a card disables its own buttons while its move is happening
+   * without freezing the rest of the board — a kitchen accepting one order should not have to
+   * wait to accept the next.
+   */
+  private readonly movingSignal = signal<string | null>(null);
+  readonly moving = this.movingSignal.asReadonly();
 
   /** Whether the live channel is up. Shown, not decided with: the board refreshes either way. */
   readonly live = computed(() => this.stream.status() === 'live');
@@ -90,6 +111,58 @@ export class QueueStore {
 
     const ticker = setInterval(() => this.nowSignal.set(Date.now()), TICK_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(ticker));
+  }
+
+  /**
+   * Moves one order, then reloads the board.
+   *
+   * The reload is not strictly necessary — the server pushes the change to this restaurant's
+   * group, which bumps the revision, which refetches — but waiting for a round trip through a
+   * socket to redraw a button somebody just pressed is the difference between a screen that feels
+   * immediate and one that feels broken. The push arriving a moment later is a harmless second
+   * refresh.
+   *
+   * Returns whether it worked, so a caller knows whether to close a dialog.
+   */
+  async move(
+    orderId: string,
+    to: OrderStatus,
+    reason: RejectionReason | null = null,
+    note: string | null = null,
+  ): Promise<boolean> {
+    this.movingSignal.set(orderId);
+    this.error.set(null);
+
+    // Most often a 409: another tablet got there first, or the order moved on while this one was
+    // being read. The message from the server says which, and it is worth showing verbatim.
+    let refusal: string | null = null;
+
+    try {
+      await firstValueFrom(
+        this.moveClient.changeStatus(orderId, {
+          to,
+          reason: reason ?? undefined,
+          note: note ?? undefined,
+        }),
+      );
+    } catch (error) {
+      refusal = describeError(error, 'Could not update the order.');
+    }
+
+    this.movingSignal.set(null);
+
+    // Whether it worked or not. A refused move means this board was showing something stale,
+    // which is exactly when it most needs re-reading.
+    await this.refresh();
+
+    // After the refresh, and that order is the point rather than an accident: a refresh that
+    // succeeds clears the error signal, so setting the refusal first meant it vanished a
+    // heartbeat later. The person saw a button do nothing and was told nothing.
+    if (refusal !== null) {
+      this.error.set(refusal);
+    }
+
+    return refusal === null;
   }
 
   /** Re-reads the queue. Called by the effect above, and by a person pressing refresh. */

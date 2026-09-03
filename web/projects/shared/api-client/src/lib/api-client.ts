@@ -3135,6 +3135,7 @@ export interface OrderSummaryResponse {
     restaurantName: string;
     restaurantSlug: string;
     customerName: string;
+    availableTransitions: OrderStatus[];
 
     [key: string]: any;
 }

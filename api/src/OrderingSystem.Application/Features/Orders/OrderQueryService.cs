@@ -32,7 +32,7 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
 
         return await PageAsync(
             db.Orders.AsNoTracking().Where(o => o.CustomerId == userId),
-            oldestFirst: false, page, pageSize, ct);
+            OrderActor.Customer, oldestFirst: false, page, pageSize, ct);
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
         // Oldest first, unlike the history. A queue is worked from the order that has waited
         // longest, and it has to be the server that decides: newest-first paging would put the
         // orders most in need of attention on the last page.
-        return await PageAsync(query, oldestFirst: true, page, pageSize, ct);
+        return await PageAsync(query, OrderActor.Restaurant, oldestFirst: true, page, pageSize, ct);
     }
 
     /// <summary>
@@ -182,12 +182,16 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
             [.. moves.Distinct().Order()]);
     }
 
+    /// <param name="actor">
+    /// Which party this list is for, so each row can carry the moves that party may make. A
+    /// customer's history offers cancelling; a kitchen's queue offers the rest.
+    /// </param>
     /// <param name="oldestFirst">
     /// True for a kitchen's queue, where the order that has waited longest is the one that needs
     /// attention. False for a customer's history, where they are looking for last night's order.
     /// </param>
     private static async Task<PagedResult<OrderSummaryResponse>> PageAsync(
-        IQueryable<Domain.Orders.Order> query, bool oldestFirst,
+        IQueryable<Domain.Orders.Order> query, OrderActor actor, bool oldestFirst,
         int? page, int? pageSize, CancellationToken ct)
     {
         var (currentPage, size) = Paging.Normalise(page, pageSize);
@@ -198,9 +202,29 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
             ? query.OrderBy(o => o.PlacedAt)
             : query.OrderByDescending(o => o.PlacedAt);
 
-        var items = await ordered
+        // Projected to an anonymous type first, then finished in memory. The transitions come from
+        // a frozen table rather than from the database, and no expression tree can call into it.
+        var rows = await ordered
             .Skip((currentPage - 1) * size)
             .Take(size)
+            .Select(o => new
+            {
+                o.Id,
+                o.OrderNumber,
+                o.Status,
+                o.FulfillmentType,
+                o.PlacedAt,
+                o.TotalUsd,
+                ItemCount = o.Lines.Sum(l => l.Quantity),
+                o.PromisedMinutesMin,
+                o.PromisedMinutesMax,
+                RestaurantName = o.Restaurant.Name,
+                RestaurantSlug = o.Restaurant.Slug,
+                CustomerName = o.Customer.FullName,
+            })
+            .ToListAsync(ct);
+
+        var items = rows
             .Select(o => new OrderSummaryResponse(
                 o.Id,
                 o.OrderNumber,
@@ -208,13 +232,14 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
                 o.FulfillmentType,
                 o.PlacedAt,
                 o.TotalUsd,
-                o.Lines.Sum(l => l.Quantity),
+                o.ItemCount,
                 o.PromisedMinutesMin,
                 o.PromisedMinutesMax,
-                o.Restaurant.Name,
-                o.Restaurant.Slug,
-                o.Customer.FullName))
-            .ToListAsync(ct);
+                o.RestaurantName,
+                o.RestaurantSlug,
+                o.CustomerName,
+                OrderTransitions.NextFor(o.Status, o.FulfillmentType, actor)))
+            .ToList();
 
         return new PagedResult<OrderSummaryResponse>(items, currentPage, size, total);
     }

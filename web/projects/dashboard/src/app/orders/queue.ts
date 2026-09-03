@@ -1,13 +1,19 @@
-import { DatePipe, CurrencyPipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { CurrencyPipe, DatePipe } from '@angular/common';
+import { Component, effect, inject, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { FulfillmentType } from 'api-client';
+import { FulfillmentType, OrderStatus } from 'api-client';
+import { OrderStream } from 'realtime';
+import { firstValueFrom } from 'rxjs';
+import { Chime } from './chime';
+import { OrderAction, actionsFor } from './order-actions';
 import { QueuedOrder } from './queue-model';
 import { QueueStore } from './queue-store';
+import { ReasonDialog, ReasonDialogData, ReasonDialogResult } from './reason-dialog';
 
 /**
  * The screen staff live in during service.
@@ -18,8 +24,12 @@ import { QueueStore } from './queue-store';
  *
  * It never asks whether the live channel is up. {@link QueueStore} refreshes on one signal that
  * covers a pushed message, a reconnection and the poll behind it, so the board simply draws what
- * it has — and says, quietly, whether the connection is live, because a member of staff deciding
- * whether to trust the screen deserves to know.
+ * it has — and says, quietly, whether the connection is live, because somebody deciding whether
+ * to trust the screen deserves to know.
+ *
+ * The buttons come from each order's own `availableTransitions`, which the API fills from the
+ * transition table. Nothing here decides what may follow what; a screen that worked it out itself
+ * would be a second copy of the rule, and the first copy is the one the server enforces.
  */
 @Component({
   selector: 'app-queue',
@@ -29,6 +39,7 @@ import { QueueStore } from './queue-store';
     DatePipe,
     MatButtonModule,
     MatCardModule,
+    MatDialogModule,
     MatIconModule,
     MatProgressBarModule,
     MatTooltipModule,
@@ -37,9 +48,28 @@ import { QueueStore } from './queue-store';
   styleUrl: './queue.scss',
 })
 export class Queue {
+  private readonly dialog = inject(MatDialog);
+  private readonly stream = inject(OrderStream);
+
   protected readonly store = inject(QueueStore);
+  protected readonly chime = inject(Chime);
 
   protected readonly FulfillmentType = FulfillmentType;
+
+  constructor() {
+    // A brand-new order is the one thing worth interrupting somebody for. Everything else on this
+    // board can wait until they next glance at it; an unanswered order cannot.
+    effect(() => {
+      const change = this.stream.lastChange();
+
+      // previousStatus is null only for an order that came from nowhere — a placement. A move
+      // between statuses is a kitchen's own press coming back to it, which would be an odd thing
+      // to be told about.
+      if (change?.previousStatus === null) {
+        untracked(() => this.chime.play());
+      }
+    });
+  }
 
   /** "3 min", or "just now" for the first minute, which is the honest thing to call it. */
   protected waited(order: QueuedOrder): string {
@@ -63,4 +93,46 @@ export class Queue {
 
     return left === 0 ? 'due now' : `${left} min left`;
   }
+
+  protected actions(order: QueuedOrder): readonly OrderAction[] {
+    return actionsFor(order.order.availableTransitions, order.order.fulfillment);
+  }
+
+  /**
+   * Presses a button.
+   *
+   * Also the moment the browser will let the chime start, because it is a real user gesture —
+   * which is why unlocking happens here rather than somewhere that looks tidier.
+   */
+  protected async press(row: QueuedOrder, action: OrderAction): Promise<void> {
+    void this.chime.unlock();
+
+    if (!action.needsReason) {
+      await this.store.move(row.order.id, action.to);
+      return;
+    }
+
+    const answer = await firstValueFrom(
+      this.dialog
+        .open<ReasonDialog, ReasonDialogData, ReasonDialogResult>(ReasonDialog, {
+          width: '26rem',
+          data: {
+            orderNumber: row.order.orderNumber,
+            customerName: row.order.customerName,
+            to: action.to,
+          },
+        })
+        .afterClosed(),
+    );
+
+    if (answer) {
+      await this.store.move(row.order.id, action.to, answer.reason, answer.note);
+    }
+  }
+
+  protected toggleSound(): void {
+    this.chime.setEnabled(!this.chime.enabled());
+  }
+
+  protected readonly OrderStatus = OrderStatus;
 }

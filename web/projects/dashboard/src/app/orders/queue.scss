@@ -134,11 +134,31 @@
 
   &.late {
     border-left-color: var(--mat-sys-error);
+  }
+}
 
-    .promise {
-      color: var(--mat-sys-error);
-      font-weight: 600;
-    }
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  // Reads as off until the browser has actually let us make noise, so the icon never claims a
+  // sound that will not happen.
+  .muted {
+    color: var(--mat-sys-outline);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+
+  // Thumb-sized, because this screen is pressed by somebody holding something in the other hand.
+  button {
+    flex: 1 1 auto;
+    min-height: 2.75rem;
   }
 }
 
@@ -182,6 +202,13 @@
 
 .timing {
   font-variant-numeric: tabular-nums;
+}
+
+// The promised window, once it has actually passed. Not tied to the card's urgency: an order can
+// be late to be answered while its promise is still comfortably ahead.
+.promise.over {
+  color: var(--mat-sys-error);
+  font-weight: 600;
 }
 
 .error mat-card-content,

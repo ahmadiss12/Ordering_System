@@ -31,7 +31,15 @@ public sealed record OrderSummaryResponse(
 
     string RestaurantName,
     string RestaurantSlug,
-    string CustomerName);
+    string CustomerName,
+
+    /// <summary>
+    /// What this caller could do with this order right now, from the transition table — the same
+    /// list the detail carries, on the row, because a kitchen board draws a button on every card
+    /// and asking each order for its detail to find out which would be one request per row per
+    /// refresh. It is a lookup in a frozen table, not a query, so it costs the database nothing.
+    /// </summary>
+    IReadOnlyList<OrderStatus> AvailableTransitions);
 
 public sealed record OrderLineOptionResponse(
     string GroupName, string Name, decimal PriceDeltaUsd, int Quantity);

@@ -2,12 +2,31 @@
   <div class="heading">
     <h1>Queue</h1>
 
-    <!-- Quiet, and deliberately so. The board refreshes whether or not the socket is up, so this
-         is here to answer "can I trust this screen" rather than to be acted on. -->
-    <span class="link" [class.down]="!store.live()">
-      <mat-icon>{{ store.live() ? 'wifi' : 'wifi_off' }}</mat-icon>
-      {{ store.live() ? 'Live' : 'Reconnecting' }}
-    </span>
+    <div class="status">
+      <!-- Quiet, and deliberately so. The board refreshes whether or not the socket is up, so
+           this is here to answer "can I trust this screen" rather than to be acted on. -->
+      <span class="link" [class.down]="!store.live()">
+        <mat-icon>{{ store.live() ? 'wifi' : 'wifi_off' }}</mat-icon>
+        {{ store.live() ? 'Live' : 'Reconnecting' }}
+      </span>
+
+      <!-- Says "needs a tap" rather than "on" until the browser has actually let us make noise.
+           A toggle that claims to be on while the page is silent is worse than no toggle. -->
+      <button
+        matIconButton
+        [matTooltip]="
+          !chime.enabled()
+            ? 'Turn on the new-order sound'
+            : chime.ready()
+              ? 'New-order sound is on'
+              : 'Tap any order button once to allow sound'
+        "
+        [class.muted]="!chime.enabled() || !chime.ready()"
+        (click)="toggleSound()"
+      >
+        <mat-icon>{{ chime.enabled() ? 'volume_up' : 'volume_off' }}</mat-icon>
+      </button>
+    </div>
   </div>
 
   @if (store.needingAttention() > 0) {
@@ -81,9 +100,47 @@
               <p class="timing">
                 <span [title]="row.order.placedAt | date: 'medium'">{{ waited(row) }}</span>
                 @if (promise(row); as left) {
-                  <span class="promise">{{ left }}</span>
+                  <!-- Red only when the promise itself has actually passed. An order that is late
+                       to be answered is already shouting on its left edge, and colouring "12 min
+                       left" red as well would say the promise was blown when it was not. -->
+                  <span class="promise" [class.over]="(row.minutesToPromise ?? 0) < 0">
+                    {{ left }}
+                  </span>
                 }
               </p>
+
+              @if (actions(row); as choices) {
+                @if (choices.length > 0) {
+                  <div class="actions">
+                    <!-- Two elements rather than one with a bound appearance. matButton is a
+                         directive whose appearance is read once at creation, so binding it
+                         through attr. sets an HTML attribute Material never looks at — every
+                         button came out identically outlined and the primary action stopped
+                         being findable. -->
+                    @for (action of choices; track action.to) {
+                      @if (action.primary) {
+                        <button
+                          matButton="filled"
+                          [disabled]="store.moving() !== null"
+                          (click)="press(row, action)"
+                        >
+                          <mat-icon>{{ action.icon }}</mat-icon>
+                          {{ action.label }}
+                        </button>
+                      } @else {
+                        <button
+                          matButton="outlined"
+                          [disabled]="store.moving() !== null"
+                          (click)="press(row, action)"
+                        >
+                          <mat-icon>{{ action.icon }}</mat-icon>
+                          {{ action.label }}
+                        </button>
+                      }
+                    }
+                  </div>
+                }
+              }
             </mat-card-content>
           </mat-card>
         } @empty {

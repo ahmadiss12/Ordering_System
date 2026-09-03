@@ -223,6 +223,38 @@ public sealed class OrderReadTests(ApiFactory factory) : IClassFixture<ApiFactor
     }
 
     [Fact]
+    public async Task A_queue_row_carries_the_buttons_the_kitchen_may_press()
+    {
+        var customer = await SignInAsync("rita@example.test");
+        var placed = await PlaceOrderAsync(customer, "frieslab", "Cheese Lab Fries", 2);
+
+        var staff = await SignInAsync("staff@frieslab.test");
+        var queue = await staff.GetFromJsonAsync<PagedResult<OrderSummaryResponse>>(
+            "/api/restaurant/orders?status=Placed", Ct);
+
+        // On the row, so a board of thirty cards draws thirty correct buttons without thirty
+        // requests. It is a lookup in a frozen table, so it costs the database nothing.
+        var row = queue!.Items.Single(o => o.Id == placed.Id);
+        row.AvailableTransitions.ShouldBe(
+            [OrderStatus.Accepted, OrderStatus.Rejected], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task A_history_row_offers_the_customers_own_moves_not_the_kitchens()
+    {
+        var customer = await SignInAsync("rita@example.test");
+        var placed = await PlaceOrderAsync(customer, "frieslab", "Cheese Lab Fries", 2);
+
+        var mine = await customer.GetFromJsonAsync<PagedResult<OrderSummaryResponse>>(
+            "/api/orders", Ct);
+
+        // The same order, a different list, a different set of buttons. A history that offered
+        // Accept would draw a button the API refuses.
+        var row = mine!.Items.Single(o => o.Id == placed.Id);
+        row.AvailableTransitions.ShouldBe([OrderStatus.Cancelled]);
+    }
+
+    [Fact]
     public async Task One_restaurant_never_sees_anothers_orders()
     {
         var customer = await SignInAsync("rita@example.test");
