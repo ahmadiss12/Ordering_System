@@ -1,0 +1,245 @@
+import { TestBed } from '@angular/core/testing';
+import {
+  FulfillmentType,
+  OrderStatus,
+  OrderSummaryResponse,
+  PagedResultOfOrderSummaryResponse,
+  RestaurantOrdersClient,
+} from 'api-client';
+import { LiveStatus, OrderStream } from 'realtime';
+import { Observable, of, throwError } from 'rxjs';
+import { WritableSignal, signal } from '@angular/core';
+import { QueueStore } from './queue-store';
+
+/**
+ * The board's plumbing: what makes it refresh, and what it does when refreshing fails.
+ *
+ * The urgency rules themselves are tested in queue-model.spec.ts, which needs no Angular at all.
+ * What is here is everything that would leave a kitchen looking at a screen that is quietly wrong.
+ */
+describe('QueueStore', () => {
+  let client: FakeOrdersClient;
+  let stream: FakeStream;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    client = new FakeOrdersClient();
+    stream = new FakeStream();
+
+    TestBed.configureTestingModule({
+      providers: [
+        QueueStore,
+        { provide: RestaurantOrdersClient, useValue: client },
+        { provide: OrderStream, useValue: stream },
+      ],
+    });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  // ------------------------------------------------------------------ what makes it refresh
+
+  it('loads the board as soon as it exists', async () => {
+    client.returns([row({ id: 'a' })]);
+
+    const store = await created();
+
+    expect(store.shown()).toBe(1);
+    expect(store.loading()).toBe(false);
+  });
+
+  it('asks only for the statuses a kitchen works', async () => {
+    await created();
+
+    // The finished ones belong to the history screen. Fetching them here would push live orders
+    // off a fifty-row page on a busy night.
+    expect(client.lastStatuses).toEqual([
+      OrderStatus.Placed,
+      OrderStatus.Accepted,
+      OrderStatus.Preparing,
+      OrderStatus.ReadyForPickup,
+      OrderStatus.OutForDelivery,
+    ]);
+  });
+
+  it('refetches whenever the stream says something changed', async () => {
+    const store = await created();
+    expect(client.calls).toBe(1);
+
+    client.returns([row({ id: 'a' }), row({ id: 'b' })]);
+    stream.revisionSignal.set(1);
+    await settle();
+
+    // One trigger, whether that revision came from a pushed message, a reconnection or the poll
+    // behind them. The store never learns which, and cannot behave differently for one of them.
+    expect(client.calls).toBe(2);
+    expect(store.shown()).toBe(2);
+  });
+
+  // ------------------------------------------------------------------ when it goes wrong
+
+  it('keeps the orders it has when a refresh fails', async () => {
+    client.returns([row({ id: 'a' })]);
+    const store = await created();
+
+    client.fails();
+    stream.revisionSignal.set(1);
+    await settle();
+
+    // A kitchen mid-service is far better off with a board that is a few seconds stale and says
+    // so than with an empty one.
+    expect(store.shown()).toBe(1);
+    expect(store.error()).not.toBeNull();
+  });
+
+  it('clears the error once a refresh works again', async () => {
+    client.fails();
+    const store = await created();
+    expect(store.error()).not.toBeNull();
+
+    client.returns([row({ id: 'a' })]);
+    stream.revisionSignal.set(1);
+    await settle();
+
+    expect(store.error()).toBeNull();
+  });
+
+  // ------------------------------------------------------------------ what it shows
+
+  it('files each order under the column its status belongs to', async () => {
+    client.returns([
+      row({ id: 'a', status: OrderStatus.Placed }),
+      row({ id: 'b', status: OrderStatus.Preparing }),
+      row({ id: 'c', status: OrderStatus.ReadyForPickup }),
+      row({ id: 'd', status: OrderStatus.OutForDelivery }),
+    ]);
+
+    const store = await created();
+    const byKey = new Map(store.columns().map((c) => [c.key, c.orders.length]));
+
+    expect(byKey.get('new')).toBe(1);
+    expect(byKey.get('accepted')).toBe(0);
+    expect(byKey.get('cooking')).toBe(1);
+    // Ready and out for delivery are the same moment in a kitchen's day: the food has left.
+    expect(byKey.get('out')).toBe(2);
+  });
+
+  it('says when it is not showing everything', async () => {
+    client.returns([row({ id: 'a' })], 60);
+
+    const store = await created();
+
+    // Silently showing fifty of sixty would have staff believing the board was the whole queue.
+    expect(store.truncated()).toBe(true);
+    expect(store.total()).toBe(60);
+  });
+
+  it('counts the rows that want attention', async () => {
+    client.returns([
+      row({ id: 'a', minutesAgo: 0 }),
+      row({ id: 'b', minutesAgo: 3 }),
+      row({ id: 'c', minutesAgo: 9 }),
+    ]);
+
+    const store = await created();
+
+    expect(store.needingAttention()).toBe(2);
+  });
+
+  // ------------------------------------------------------------------ the clock
+
+  it('turns an order late without anybody touching the server', async () => {
+    client.returns([row({ id: 'a', minutesAgo: 0, status: OrderStatus.Placed })]);
+    const store = await created();
+
+    expect(store.orders()[0].urgency).toBe('calm');
+
+    // Nothing changed on the server and nothing was refetched — the order simply sat there.
+    // Without its own tick the board would still be calling this calm at closing time.
+    const callsBefore = client.calls;
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+
+    expect(store.orders()[0].urgency).toBe('late');
+    expect(client.calls).toBe(callsBefore);
+  });
+
+  // ------------------------------------------------------------------ helpers
+
+  async function created(): Promise<QueueStore> {
+    const store = TestBed.inject(QueueStore);
+    await settle();
+    return store;
+  }
+
+  /** Runs the effect and lets the client's promise resolve. */
+  async function settle(): Promise<void> {
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(0);
+  }
+
+  function row(overrides: {
+    id: string;
+    status?: OrderStatus;
+    minutesAgo?: number;
+  }): OrderSummaryResponse {
+    return {
+      id: overrides.id,
+      orderNumber: `FRIESLAB-260903-00${overrides.id}`,
+      status: overrides.status ?? OrderStatus.Placed,
+      fulfillment: FulfillmentType.Pickup,
+      placedAt: new Date(Date.now() - (overrides.minutesAgo ?? 0) * 60_000),
+      totalUsd: 23.5,
+      itemCount: 2,
+      promisedMinutesMin: 20,
+      promisedMinutesMax: 30,
+      restaurantName: 'FriesLab',
+      restaurantSlug: 'frieslab',
+      customerName: 'Rita Customer',
+    };
+  }
+});
+
+class FakeOrdersClient {
+  calls = 0;
+  lastStatuses: OrderStatus[] | undefined;
+
+  private items: OrderSummaryResponse[] = [];
+  private totalCount = 0;
+  private failing = false;
+
+  returns(items: OrderSummaryResponse[], totalCount = items.length): void {
+    this.items = items;
+    this.totalCount = totalCount;
+    this.failing = false;
+  }
+
+  fails(): void {
+    this.failing = true;
+  }
+
+  queue(status?: OrderStatus[]): Observable<PagedResultOfOrderSummaryResponse> {
+    this.calls++;
+    this.lastStatuses = status;
+
+    if (this.failing) {
+      return throwError(() => new Error('the API is not answering'));
+    }
+
+    return of({
+      items: this.items,
+      page: 1,
+      pageSize: 50,
+      totalCount: this.totalCount,
+      totalPages: 1,
+      hasNextPage: false,
+    } as PagedResultOfOrderSummaryResponse);
+  }
+}
+
+class FakeStream {
+  readonly revisionSignal: WritableSignal<number> = signal(0);
+  readonly statusSignal: WritableSignal<LiveStatus> = signal<LiveStatus>('live');
+
+  readonly revision = this.revisionSignal.asReadonly();
+  readonly status = this.statusSignal.asReadonly();
+}

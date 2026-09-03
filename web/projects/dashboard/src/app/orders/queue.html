@@ -1,0 +1,102 @@
+<header class="intro">
+  <div class="heading">
+    <h1>Queue</h1>
+
+    <!-- Quiet, and deliberately so. The board refreshes whether or not the socket is up, so this
+         is here to answer "can I trust this screen" rather than to be acted on. -->
+    <span class="link" [class.down]="!store.live()">
+      <mat-icon>{{ store.live() ? 'wifi' : 'wifi_off' }}</mat-icon>
+      {{ store.live() ? 'Live' : 'Reconnecting' }}
+    </span>
+  </div>
+
+  @if (store.needingAttention() > 0) {
+    <p class="attention">
+      <mat-icon>priority_high</mat-icon>
+      {{ store.needingAttention() }} needing attention
+    </p>
+  } @else if (!store.isEmpty()) {
+    <p>{{ store.shown() }} in service, all on time.</p>
+  }
+</header>
+
+@if (store.loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (store.error(); as message) {
+  <mat-card appearance="outlined" class="error">
+    <mat-card-content>
+      <mat-icon>error_outline</mat-icon>
+      <!-- The rows below are whatever was last loaded, so this says the board is stale rather
+           than pretending it is empty. -->
+      <span>{{ message }} Showing the last orders it managed to load.</span>
+      <button matButton (click)="store.refresh()">Try again</button>
+    </mat-card-content>
+  </mat-card>
+}
+
+@if (store.isEmpty() && !store.error()) {
+  <mat-card appearance="outlined" class="empty">
+    <mat-card-content>
+      <mat-icon>done_all</mat-icon>
+      <p>Nothing in the queue.</p>
+      <p class="muted">New orders appear here on their own.</p>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <div class="board">
+    @for (column of store.columns(); track column.key) {
+      <section class="column" [class.empty-column]="column.orders.length === 0">
+        <h2>
+          <mat-icon>{{ column.icon }}</mat-icon>
+          {{ column.title }}
+          <span class="count">{{ column.orders.length }}</span>
+        </h2>
+
+        @for (row of column.orders; track row.order.id) {
+          <mat-card appearance="outlined" class="order" [class]="row.urgency">
+            <mat-card-content>
+              <div class="top">
+                <span class="number">{{ row.order.orderNumber }}</span>
+                <mat-icon
+                  class="fulfillment"
+                  [matTooltip]="
+                    row.order.fulfillment === FulfillmentType.Delivery ? 'Delivery' : 'Pickup'
+                  "
+                >
+                  {{ row.order.fulfillment === FulfillmentType.Delivery ? 'moped' : 'store' }}
+                </mat-icon>
+              </div>
+
+              <p class="customer">{{ row.order.customerName }}</p>
+
+              <p class="facts">
+                <span
+                  >{{ row.order.itemCount }} item{{ row.order.itemCount === 1 ? '' : 's' }}</span
+                >
+                <span>{{ row.order.totalUsd | currency: 'USD' }}</span>
+              </p>
+
+              <p class="timing">
+                <span [title]="row.order.placedAt | date: 'medium'">{{ waited(row) }}</span>
+                @if (promise(row); as left) {
+                  <span class="promise">{{ left }}</span>
+                }
+              </p>
+            </mat-card-content>
+          </mat-card>
+        } @empty {
+          <p class="nothing">—</p>
+        }
+      </section>
+    }
+  </div>
+
+  @if (store.truncated()) {
+    <p class="truncated">
+      Showing the {{ store.shown() }} oldest of {{ store.total() }} live orders. Work the top of the
+      board and the rest will follow.
+    </p>
+  }
+}

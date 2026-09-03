@@ -4034,6 +4034,8 @@
           "placedAt",
           "totalUsd",
           "itemCount",
+          "promisedMinutesMin",
+          "promisedMinutesMax",
           "restaurantName",
           "restaurantSlug",
           "customerName"
@@ -4066,6 +4068,22 @@
             "format": "double"
           },
           "itemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "promisedMinutesMin": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "promisedMinutesMax": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",

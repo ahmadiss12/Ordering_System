@@ -3130,6 +3130,8 @@ export interface OrderSummaryResponse {
     placedAt: Date;
     totalUsd: number;
     itemCount: number;
+    promisedMinutesMin: number;
+    promisedMinutesMax: number;
     restaurantName: string;
     restaurantSlug: string;
     customerName: string;

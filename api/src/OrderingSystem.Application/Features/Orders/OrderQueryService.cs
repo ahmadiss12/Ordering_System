@@ -32,7 +32,7 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
 
         return await PageAsync(
             db.Orders.AsNoTracking().Where(o => o.CustomerId == userId),
-            page, pageSize, ct);
+            oldestFirst: false, page, pageSize, ct);
     }
 
     /// <summary>
@@ -52,7 +52,10 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
             query = query.Where(o => statuses.Contains(o.Status));
         }
 
-        return await PageAsync(query, page, pageSize, ct);
+        // Oldest first, unlike the history. A queue is worked from the order that has waited
+        // longest, and it has to be the server that decides: newest-first paging would put the
+        // orders most in need of attention on the last page.
+        return await PageAsync(query, oldestFirst: true, page, pageSize, ct);
     }
 
     /// <summary>
@@ -179,17 +182,23 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
             [.. moves.Distinct().Order()]);
     }
 
+    /// <param name="oldestFirst">
+    /// True for a kitchen's queue, where the order that has waited longest is the one that needs
+    /// attention. False for a customer's history, where they are looking for last night's order.
+    /// </param>
     private static async Task<PagedResult<OrderSummaryResponse>> PageAsync(
-        IQueryable<Domain.Orders.Order> query, int? page, int? pageSize, CancellationToken ct)
+        IQueryable<Domain.Orders.Order> query, bool oldestFirst,
+        int? page, int? pageSize, CancellationToken ct)
     {
         var (currentPage, size) = Paging.Normalise(page, pageSize);
 
         var total = await query.CountAsync(ct);
 
-        var items = await query
-            // Newest first everywhere. A kitchen works the top of the list and a customer looks
-            // for what they ordered last night.
-            .OrderByDescending(o => o.PlacedAt)
+        var ordered = oldestFirst
+            ? query.OrderBy(o => o.PlacedAt)
+            : query.OrderByDescending(o => o.PlacedAt);
+
+        var items = await ordered
             .Skip((currentPage - 1) * size)
             .Take(size)
             .Select(o => new OrderSummaryResponse(
@@ -200,6 +209,8 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
                 o.PlacedAt,
                 o.TotalUsd,
                 o.Lines.Sum(l => l.Quantity),
+                o.PromisedMinutesMin,
+                o.PromisedMinutesMax,
                 o.Restaurant.Name,
                 o.Restaurant.Slug,
                 o.Customer.FullName))

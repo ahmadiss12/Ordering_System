@@ -19,6 +19,16 @@ public sealed record OrderSummaryResponse(
     DateTimeOffset PlacedAt,
     decimal TotalUsd,
     int ItemCount,
+
+    /// <summary>
+    /// The window promised when the order was placed, so a queue can say which orders are about
+    /// to breach it. Carried on the summary rather than fetched per order: a kitchen screen
+    /// refreshes every few seconds, and asking for each order's detail to work out whether it is
+    /// late would be one request per row per refresh.
+    /// </summary>
+    int PromisedMinutesMin,
+    int PromisedMinutesMax,
+
     string RestaurantName,
     string RestaurantSlug,
     string CustomerName);

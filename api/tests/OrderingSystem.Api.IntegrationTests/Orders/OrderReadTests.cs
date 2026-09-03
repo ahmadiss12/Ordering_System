@@ -185,6 +185,44 @@ public sealed class OrderReadTests(ApiFactory factory) : IClassFixture<ApiFactor
     }
 
     [Fact]
+    public async Task The_queue_is_oldest_first_because_that_is_the_one_that_has_waited()
+    {
+        var customer = await SignInAsync("rita@example.test");
+
+        var first = await PlaceOrderAsync(customer, "frieslab", "Cheese Lab Fries", 2);
+        var second = await PlaceOrderAsync(customer, "frieslab", "Buffalo Wings", 2);
+
+        var staff = await SignInAsync("staff@frieslab.test");
+        var queue = await staff.GetFromJsonAsync<PagedResult<OrderSummaryResponse>>(
+            "/api/restaurant/orders?status=Placed", Ct);
+
+        // The opposite of the history, and deliberately so. A kitchen works the order that has
+        // been waiting longest; newest-first paging would put the ones most in need of attention
+        // on the last page.
+        var ids = queue!.Items.Select(o => o.Id).ToList();
+        ids.IndexOf(first.Id).ShouldBeLessThan(ids.IndexOf(second.Id));
+    }
+
+    [Fact]
+    public async Task A_queue_row_carries_the_promise_it_has_to_keep()
+    {
+        var customer = await SignInAsync("rita@example.test");
+        var placed = await PlaceOrderAsync(customer, "frieslab", "Cheese Lab Fries", 2);
+
+        var staff = await SignInAsync("staff@frieslab.test");
+        var queue = await staff.GetFromJsonAsync<PagedResult<OrderSummaryResponse>>(
+            "/api/restaurant/orders", Ct);
+
+        // On the row rather than fetched per order: a kitchen screen refreshes every few seconds,
+        // and asking each order for its detail to find out whether it is late would be one
+        // request per row per refresh.
+        var row = queue!.Items.Single(o => o.Id == placed.Id);
+        row.PromisedMinutesMin.ShouldBe(placed.PromisedMinutesMin);
+        row.PromisedMinutesMax.ShouldBe(placed.PromisedMinutesMax);
+        row.PromisedMinutesMax.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
     public async Task One_restaurant_never_sees_anothers_orders()
     {
         var customer = await SignInAsync("rita@example.test");

@@ -16,6 +16,7 @@ export const routes: Routes = [
     loadComponent: () => import('./shell/shell').then((m) => m.Shell),
     children: [
       navChild(NAV.overview, () => import('./overview/overview').then((m) => m.Overview)),
+      navChild(NAV.orders, () => import('./orders/queue').then((m) => m.Queue)),
       navChild(NAV.menu, () => import('./menu/menu').then((m) => m.Menu)),
       navChild(NAV.settings, () => import('./settings/settings').then((m) => m.Settings)),
       {

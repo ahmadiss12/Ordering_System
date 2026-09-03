@@ -284,12 +284,57 @@ that means something else the day somebody renumbers the C# enum, with nothing t
 
 ### Step 7 — Kitchen queue
 
-The screen staff live in during service. Orders grouped by status, newest first, the next action
-on each one as a single press. Loud about what needs attention: a new order, an order waiting too
-long, one about to breach its promised time.
+The screen staff live in during service. Orders grouped by status, the next action on each one as
+a single press. Loud about what needs attention: a new order, an order waiting too long, one about
+to breach its promised time.
 
 Designed for a tablet propped up in a kitchen, read at arm's length by someone with their hands
 full.
+
+Split in two: the board, then acting on it.
+
+**7a — the board ✅.** Four columns — New, Accepted, Cooking, Ready & on the way — with the rows
+the API sends and the urgency the clock makes of them.
+
+**Oldest first, which contradicts what this plan said.** "Newest first" was written for a history
+list and copied onto the queue by mistake. A kitchen works the order that has waited longest, and
+it has to be the server that decides: newest-first paging would put the orders most in need of
+attention on the last page. The customer's history is still newest first, because they are looking
+for last night's order.
+
+**One trigger, and the board never asks which.** It refetches when `OrderStream`'s revision
+changes — a pushed message, a reconnection, or the poll behind them, folded into one number by
+step 6. Verified against the running stack: an order placed entirely outside the browser appeared
+on the board in under half a second with no reload.
+
+**A clock of its own, separate from the refresh.** Urgency is a comparison against the time now,
+so an order sitting unanswered becomes late with nothing happening on the server. Without its own
+tick the board would still be calling an order calm twenty minutes after it stopped being calm.
+
+**Thresholds, each a judgement rather than arithmetic.** An unanswered order asks for attention at
+two minutes and is late at five, measured from placement, because nobody has said yes to the
+customer yet. Everything else is measured against the promised window and stops counting once the
+food has left the pass — a countdown still running on an order on a moped would have the board
+shouting about something the kitchen has finished.
+
+**Amber, not the theme's tertiary.** Material 3 has no token for "this wants a person soon", and
+the nearest one is configured as blue here — which on a kitchen screen reads as a link. The board
+carries three states and only two of them have colour, so that the colour still means something.
+
+**A failed refresh leaves the rows alone.** A kitchen mid-service is far better off with a board
+that is a few seconds stale and says so than with an empty one.
+
+**Two bugs caught by looking at it, and both now caught by a build.** The board wrapped to three
+columns and dropped the fourth underneath the first, and the Cooking column had no icon at all —
+`skillet` exists in Material Symbols but not in the classic font this application bundles, so it
+rendered as nothing, with no error anywhere. That is the second time an icon has failed silently
+in this project. Icon names in TypeScript are now typed against the bundled font's own manifest,
+so a wrong one is a compile error, and a spec reads every `<mat-icon>` in every template and
+checks it against the same list — with a guard test, because a regex that stops matching would
+otherwise leave the check passing on an empty set.
+
+**7b — acting on it** comes next: the buttons, drawn from each order's own available transitions,
+and the reason a refusal has to carry.
 
 ### Step 8 — Order history and detail
 

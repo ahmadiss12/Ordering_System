@@ -3,7 +3,13 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals",
+      // Vite's own types, for import.meta.glob and `?raw` imports. The icon spec reads
+      // the templates and the bundled font's codepoints as text, which is a build-time
+      // feature of the bundler rather than anything the browser does.
+      "vite/client"
+    ]
   },
   "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
 }

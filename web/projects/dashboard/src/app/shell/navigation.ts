@@ -1,4 +1,5 @@
 import { Route } from '@angular/router';
+import { MaterialIcon } from 'material-icons';
 import { RESTAURANT_OWNER, RESTAURANT_STAFF, Role, roleGuard } from 'auth';
 
 /**
@@ -8,8 +9,15 @@ export interface NavItem {
   /** Route path, relative to the shell. Empty string is the landing section. */
   readonly path: string;
   readonly label: string;
-  /** Material icon ligature. */
-  readonly icon: string;
+  /**
+   * Material icon ligature.
+   *
+   * Typed against the bundled font's own list rather than as a string. A name that font does not
+   * carry — `skillet`, say, which exists in Material Symbols but not here — renders as nothing at
+   * all, with no error anywhere; this turns that into a build failure. Templates cannot be
+   * checked this way, which is what icons.spec.ts is for.
+   */
+  readonly icon: MaterialIcon;
   /** Roles allowed in. Omitted means any signed-in user. */
   readonly roles?: readonly Role[];
 }
@@ -30,6 +38,12 @@ export const NAV = {
     path: '',
     label: 'Overview',
     icon: 'dashboard',
+  },
+  orders: {
+    path: 'orders',
+    label: 'Queue',
+    icon: 'receipt_long',
+    roles: RESTAURANT_STAFF,
   },
   menu: {
     path: 'menu',

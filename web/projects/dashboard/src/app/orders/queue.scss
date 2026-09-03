@@ -1,0 +1,230 @@
+// Read at arm's length by somebody holding a pan. Everything here is a size up from the rest of
+// the dashboard, and the only colour on the board is the colour that means something.
+
+// Amber, written out rather than taken from the theme. Material 3 has no semantic token for "this
+// wants a person soon" — the nearest, tertiary, is configured as blue in this application, and
+// blue on a kitchen screen reads as a link rather than as a warning. Two shades because the same
+// colour cannot be both readable as text and visible as a 5px edge across a room.
+:host {
+  --queue-attention-text: #9a5b00;
+  --queue-attention-edge: #f0a202;
+}
+
+.intro {
+  margin-bottom: 1.25rem;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-medium);
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 1.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  // Not an error. A dropped socket is expected on a Lebanese connection and the board is still
+  // refreshing on its poll, so this reads as a note rather than as something being wrong.
+  &.down {
+    color: var(--queue-attention-text);
+  }
+}
+
+.attention {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  // Deliberately not the error colour. Something needs a person, not something has broken.
+  color: var(--queue-attention-text) !important;
+  font: var(--mat-sys-title-small) !important;
+}
+
+.board {
+  display: grid;
+  // Four, stated outright rather than left to auto-fit. auto-fit fitted three at 1280px and
+  // wrapped the last column underneath the first, which reads as a bug rather than as a layout —
+  // and the four columns are the thing that makes this a board somebody can scan in one look.
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+
+  // Folding rather than scrolling sideways: a horizontal scroll is unusable with one hand.
+  @media (max-width: 60rem) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 35rem) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .count {
+    margin-left: auto;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    background: var(--mat-sys-surface-container-high);
+    font: var(--mat-sys-label-large);
+  }
+
+  &.empty-column {
+    opacity: 0.6;
+  }
+}
+
+.nothing {
+  margin: 0;
+  color: var(--mat-sys-outline);
+  text-align: center;
+}
+
+.order {
+  // The left edge is the whole urgency signal. A border rather than a fill, so a busy board does
+  // not become four blocks of colour with the text lost inside them.
+  border-left: 5px solid var(--mat-sys-outline-variant);
+
+  mat-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    // Tighter left and right than Material's default, which is what buys the order number the
+    // width it needs to stay on one line in a quarter-width column.
+    padding: 0.85rem 0.75rem;
+  }
+
+  &.attention {
+    border-left-color: var(--queue-attention-edge);
+  }
+
+  &.late {
+    border-left-color: var(--mat-sys-error);
+
+    .promise {
+      color: var(--mat-sys-error);
+      font-weight: 600;
+    }
+  }
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.number {
+  font: var(--mat-sys-title-medium);
+  // Never wrapped. It is the one string somebody reads off this screen and calls across a
+  // counter, and FRIESLAB-260904-001 broken over two lines is not a reference, it is a puzzle.
+  white-space: nowrap;
+  // Digits of the same width, so a column of order numbers lines up and can be scanned rather
+  // than read.
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.fulfillment {
+  flex: 0 0 auto;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.customer {
+  margin: 0;
+  font: var(--mat-sys-body-large);
+}
+
+.facts,
+.timing {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.timing {
+  font-variant-numeric: tabular-nums;
+}
+
+.error mat-card-content,
+.empty mat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.empty {
+  margin-top: 1rem;
+
+  mat-card-content {
+    flex-direction: column;
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+
+  mat-icon {
+    width: 3rem;
+    height: 3rem;
+    font-size: 3rem;
+    color: var(--mat-sys-outline);
+  }
+
+  p {
+    margin: 0;
+  }
+
+  .muted {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.error {
+  margin-bottom: 1rem;
+  color: var(--mat-sys-on-error-container);
+  background: var(--mat-sys-error-container);
+}
+
+.truncated {
+  margin: 1.25rem 0 0;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
