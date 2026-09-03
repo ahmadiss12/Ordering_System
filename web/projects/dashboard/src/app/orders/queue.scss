@@ -170,6 +170,15 @@
 }
 
 .number {
+  // A button that reads as text. The order number is the tappable thing, but drawing it as a
+  // Material button would put a second, competing control at the top of every card.
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
   font: var(--mat-sys-title-medium);
   // Never wrapped. It is the one string somebody reads off this screen and calls across a
   // counter, and FRIESLAB-260904-001 broken over two lines is not a reference, it is a puzzle.

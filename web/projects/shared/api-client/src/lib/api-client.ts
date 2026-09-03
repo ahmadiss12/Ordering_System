@@ -2461,11 +2461,12 @@ export class RestaurantOptionGroupsClient implements IRestaurantOptionGroupsClie
 export interface IRestaurantOrdersClient {
     /**
      * @param status (optional) 
+     * @param newestFirst (optional) 
      * @param page (optional) 
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: OrderStatus[] | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
+    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
 }
 
 @Injectable({
@@ -2483,16 +2484,21 @@ export class RestaurantOrdersClient implements IRestaurantOrdersClient {
 
     /**
      * @param status (optional) 
+     * @param newestFirst (optional) 
      * @param page (optional) 
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: OrderStatus[] | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
+    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
         let url_ = this.baseUrl + "/api/restaurant/orders?";
         if (status === null)
             throw new globalThis.Error("The parameter 'status' cannot be null.");
         else if (status !== undefined)
             status && status.forEach(item => { url_ += "status=" + encodeURIComponent("" + item) + "&"; });
+        if (newestFirst === null)
+            throw new globalThis.Error("The parameter 'newestFirst' cannot be null.");
+        else if (newestFirst !== undefined)
+            url_ += "newestFirst=" + encodeURIComponent("" + newestFirst) + "&";
         if (page === null)
             throw new globalThis.Error("The parameter 'page' cannot be null.");
         else if (page !== undefined)
@@ -3135,6 +3141,7 @@ export interface OrderSummaryResponse {
     restaurantName: string;
     restaurantSlug: string;
     customerName: string;
+    rejectionReason: RejectionReason | null;
     availableTransitions: OrderStatus[];
 
     [key: string]: any;

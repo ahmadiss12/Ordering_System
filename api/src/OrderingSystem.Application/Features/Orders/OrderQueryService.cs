@@ -39,8 +39,13 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
     /// The restaurant's queue. Statuses are a filter rather than a fixed set, because a kitchen
     /// screen wants the live ones and a history screen wants the finished ones.
     /// </summary>
+    /// <param name="newestFirst">
+    /// True for the history screen, where somebody is looking for what happened yesterday. False —
+    /// the default, and what the kitchen queue gets — for a list that is worked from the top.
+    /// </param>
     public async Task<PagedResult<OrderSummaryResponse>> ForRestaurantAsync(
-        IReadOnlyCollection<OrderStatus>? statuses, int? page, int? pageSize, CancellationToken ct = default)
+        IReadOnlyCollection<OrderStatus>? statuses, bool newestFirst,
+        int? page, int? pageSize, CancellationToken ct = default)
     {
         var restaurantId = tenant.RestaurantId
             ?? throw new ForbiddenException("Only restaurant staff can see a restaurant's orders.");
@@ -52,10 +57,12 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
             query = query.Where(o => statuses.Contains(o.Status));
         }
 
-        // Oldest first, unlike the history. A queue is worked from the order that has waited
-        // longest, and it has to be the server that decides: newest-first paging would put the
-        // orders most in need of attention on the last page.
-        return await PageAsync(query, OrderActor.Restaurant, oldestFirst: true, page, pageSize, ct);
+        // Which end the list is read from is the caller's to say, and it has to be the server that
+        // applies it: a queue sorted the wrong way would put the orders most in need of attention
+        // on the last page, and a history sorted the wrong way would open on the restaurant's
+        // first ever order.
+        return await PageAsync(
+            query, OrderActor.Restaurant, oldestFirst: !newestFirst, page, pageSize, ct);
     }
 
     /// <summary>
@@ -221,6 +228,7 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
                 RestaurantName = o.Restaurant.Name,
                 RestaurantSlug = o.Restaurant.Slug,
                 CustomerName = o.Customer.FullName,
+                o.RejectionReason,
             })
             .ToListAsync(ct);
 
@@ -238,6 +246,7 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
                 o.RestaurantName,
                 o.RestaurantSlug,
                 o.CustomerName,
+                o.RejectionReason,
                 OrderTransitions.NextFor(o.Status, o.FulfillmentType, actor)))
             .ToList();
 

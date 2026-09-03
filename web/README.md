@@ -4,7 +4,7 @@ The Angular workspace: two applications and four shared libraries.
 
 | Project      | Type        | What it is                                                        |
 | ------------ | ----------- | ----------------------------------------------------------------- |
-| `dashboard`  | application | Restaurant staff — menu, orders, hours.                           |
+| `dashboard`  | application | Restaurant staff — the queue, history, menu and hours.            |
 | `storefront` | application | The customer-facing ordering site.                                |
 | `api-client` | library     | **Generated.** TypeScript client for the API. Never edit by hand. |
 | `auth`       | library     | Tokens, refresh, route guards, HTTP interceptor.                  |

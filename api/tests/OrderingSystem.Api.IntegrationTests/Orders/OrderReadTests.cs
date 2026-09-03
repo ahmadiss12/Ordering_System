@@ -255,6 +255,44 @@ public sealed class OrderReadTests(ApiFactory factory) : IClassFixture<ApiFactor
     }
 
     [Fact]
+    public async Task The_history_reads_from_the_other_end_of_the_same_list()
+    {
+        var customer = await SignInAsync("rita@example.test");
+
+        var first = await PlaceOrderAsync(customer, "frieslab", "Cheese Lab Fries", 2);
+        var second = await PlaceOrderAsync(customer, "frieslab", "Buffalo Wings", 2);
+
+        var staff = await SignInAsync("staff@frieslab.test");
+        var history = await staff.GetFromJsonAsync<PagedResult<OrderSummaryResponse>>(
+            "/api/restaurant/orders?status=Placed&newestFirst=true", Ct);
+
+        // With paging this is not something a client can fix afterwards: the wrong end means the
+        // history opens on the restaurant's first ever order.
+        var ids = history!.Items.Select(o => o.Id).ToList();
+        ids.IndexOf(second.Id).ShouldBeLessThan(ids.IndexOf(first.Id));
+    }
+
+    [Fact]
+    public async Task A_refused_order_says_why_on_the_row()
+    {
+        var customer = await SignInAsync("rita@example.test");
+        var placed = await PlaceOrderAsync(customer, "frieslab", "Cheese Lab Fries", 2);
+
+        var staff = await SignInAsync("staff@frieslab.test");
+        var refused = await staff.PostAsJsonAsync($"/api/orders/{placed.Id}/status",
+            new ChangeOrderStatusRequest(OrderStatus.Rejected, RejectionReason.OutOfStock, null), Ct);
+        refused.EnsureSuccessStatusCode();
+
+        var history = await staff.GetFromJsonAsync<PagedResult<OrderSummaryResponse>>(
+            "/api/restaurant/orders?status=Rejected", Ct);
+
+        // Somebody scanning yesterday's refusals is looking for the pattern. Three "out of stock"
+        // in an hour says something that one order at a time does not.
+        var row = history!.Items.Single(o => o.Id == placed.Id);
+        row.RejectionReason.ShouldBe(RejectionReason.OutOfStock);
+    }
+
+    [Fact]
     public async Task One_restaurant_never_sees_anothers_orders()
     {
         var customer = await SignInAsync("rita@example.test");

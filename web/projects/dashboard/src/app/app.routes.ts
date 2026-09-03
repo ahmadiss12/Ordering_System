@@ -17,6 +17,7 @@ export const routes: Routes = [
     children: [
       navChild(NAV.overview, () => import('./overview/overview').then((m) => m.Overview)),
       navChild(NAV.orders, () => import('./orders/queue').then((m) => m.Queue)),
+      navChild(NAV.history, () => import('./orders/history').then((m) => m.History)),
       navChild(NAV.menu, () => import('./menu/menu').then((m) => m.Menu)),
       navChild(NAV.settings, () => import('./settings/settings').then((m) => m.Settings)),
       {

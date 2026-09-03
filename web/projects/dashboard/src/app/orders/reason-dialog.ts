@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { OrderStatus, RejectionReason } from 'api-client';
+import { REJECTION_REASONS } from './order-wording';
 
 export interface ReasonDialogData {
   readonly orderNumber: string;
@@ -17,16 +18,6 @@ export interface ReasonDialogResult {
   readonly reason: RejectionReason;
   readonly note: string | null;
 }
-
-/** The fixed list, in the order a kitchen would reach for them. */
-const REASONS: readonly { value: RejectionReason; label: string }[] = [
-  { value: RejectionReason.OutOfStock, label: "We've run out of something" },
-  { value: RejectionReason.TooBusy, label: "We're too busy right now" },
-  { value: RejectionReason.ClosingSoon, label: "We're closing soon" },
-  { value: RejectionReason.OutsideDeliveryArea, label: "We don't deliver there" },
-  { value: RejectionReason.CustomerUnreachable, label: "We can't reach the customer" },
-  { value: RejectionReason.Other, label: 'Something else' },
-];
 
 /**
  * Asks why, when the state machine will not accept the move without an answer.
@@ -100,7 +91,7 @@ const REASONS: readonly { value: RejectionReason; label: string }[] = [
 })
 export class ReasonDialog {
   protected readonly data = inject<ReasonDialogData>(MAT_DIALOG_DATA);
-  protected readonly reasons = REASONS;
+  protected readonly reasons = REJECTION_REASONS;
 
   // Pre-selected rather than blank. Out of stock is far and away the commonest answer, and a
   // required field with nothing chosen is one more press between a busy kitchen and the truth.

@@ -1,0 +1,178 @@
+// A receipt somebody reads to answer a question, so the reading order is the order the questions
+// come in: what went wrong, who it was for, what was in it, what it cost, what happened to it.
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.number {
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  font: var(--mat-sys-label-large);
+  white-space: nowrap;
+
+  // Three tones, not eight colours. A screen where every status has its own hue is one where
+  // none of them mean anything.
+  &.live {
+    color: var(--mat-sys-on-secondary-container);
+    background: var(--mat-sys-secondary-container);
+  }
+
+  &.done {
+    color: var(--mat-sys-on-primary-container);
+    background: var(--mat-sys-primary-container);
+  }
+
+  &.stopped {
+    color: var(--mat-sys-on-error-container);
+    background: var(--mat-sys-error-container);
+  }
+}
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-top: 0.5rem;
+}
+
+h3 {
+  margin: 0 0 0.5rem;
+  font: var(--mat-sys-title-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+p {
+  margin: 0;
+}
+
+.refusal,
+.customer-note {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+}
+
+.refusal {
+  color: var(--mat-sys-on-error-container);
+  background: var(--mat-sys-error-container);
+
+  .heading {
+    font: var(--mat-sys-title-small);
+  }
+}
+
+.customer-note {
+  color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-container-high);
+}
+
+.note,
+.line-note {
+  color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem 1.5rem;
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.label {
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.address p {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+}
+
+.qty {
+  min-width: 2rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.what {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.name {
+  font: var(--mat-sys-body-large);
+}
+
+.option {
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.delta {
+  font-variant-numeric: tabular-nums;
+}
+
+.money {
+  font-variant-numeric: tabular-nums;
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .total {
+    font: var(--mat-sys-title-medium);
+  }
+
+  .lbp {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.event {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+
+  .when {
+    min-width: 3rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .who {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.failed {
+  color: var(--mat-sys-error);
+}

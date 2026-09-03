@@ -1,0 +1,155 @@
+// Read sitting down, unlike the queue. It holds still, it pages rather than scrolling forever,
+// and it puts on the row the one thing somebody comes here to count.
+
+.intro {
+  margin-bottom: 1rem;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-medium);
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.filters {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: 0.75rem;
+}
+
+.row mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.number {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  font: var(--mat-sys-title-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  font: var(--mat-sys-label-medium);
+  white-space: nowrap;
+
+  &.done {
+    color: var(--mat-sys-on-primary-container);
+    background: var(--mat-sys-primary-container);
+  }
+
+  &.stopped {
+    color: var(--mat-sys-on-error-container);
+    background: var(--mat-sys-error-container);
+  }
+
+  // Nothing on this screen should be live, but a status the filters do not cover would otherwise
+  // arrive unstyled rather than visibly odd.
+  &.live {
+    color: var(--mat-sys-on-secondary-container);
+    background: var(--mat-sys-secondary-container);
+  }
+}
+
+.who,
+.facts,
+.reason {
+  margin: 0;
+}
+
+.facts {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+.money {
+  color: var(--mat-sys-on-surface);
+}
+
+.reason {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-error);
+
+  mat-icon {
+    font-size: 1.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error mat-card-content,
+.empty mat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.error {
+  color: var(--mat-sys-on-error-container);
+  background: var(--mat-sys-error-container);
+}
+
+.empty mat-card-content {
+  flex-direction: column;
+  padding: 3rem 1rem;
+  text-align: center;
+
+  mat-icon {
+    width: 3rem;
+    height: 3rem;
+    font-size: 3rem;
+    color: var(--mat-sys-outline);
+  }
+
+  p {
+    margin: 0;
+  }
+}

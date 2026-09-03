@@ -77,7 +77,11 @@
           <mat-card appearance="outlined" class="order" [class]="row.urgency">
             <mat-card-content>
               <div class="top">
-                <span class="number">{{ row.order.orderNumber }}</span>
+                <!-- The number is the affordance, not the whole card: a card covered in buttons
+                     that is itself a button is one a thumb opens by accident. -->
+                <button class="number" type="button" (click)="openDetail(row)">
+                  {{ row.order.orderNumber }}
+                </button>
                 <mat-icon
                   class="fulfillment"
                   [matTooltip]="

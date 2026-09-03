@@ -21,12 +21,18 @@ public sealed class RestaurantOrdersController(OrderQueryService orders) : Contr
     /// Statuses are a filter rather than a fixed set: a kitchen screen asks for the live ones and
     /// a history screen asks for the finished ones, and neither wants the other's rows.
     /// </para>
+    /// <para>
+    /// They read from opposite ends, too. A kitchen works the order that has waited longest;
+    /// somebody looking at yesterday wants the most recent first. With paging, that is not a
+    /// preference a client can apply after the fact.
+    /// </para>
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<OrderSummaryResponse>>> Queue(
         [FromQuery] OrderStatus[]? status,
+        [FromQuery] bool newestFirst,
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
         CancellationToken ct) =>
-        Ok(await orders.ForRestaurantAsync(status, page, pageSize, ct));
+        Ok(await orders.ForRestaurantAsync(status, newestFirst, page, pageSize, ct));
 }

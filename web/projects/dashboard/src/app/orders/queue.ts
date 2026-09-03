@@ -11,6 +11,7 @@ import { OrderStream } from 'realtime';
 import { firstValueFrom } from 'rxjs';
 import { Chime } from './chime';
 import { OrderAction, actionsFor } from './order-actions';
+import { OrderDetailDialog, OrderDetailDialogData } from './order-detail-dialog';
 import { QueuedOrder } from './queue-model';
 import { QueueStore } from './queue-store';
 import { ReasonDialog, ReasonDialogData, ReasonDialogResult } from './reason-dialog';
@@ -128,6 +129,15 @@ export class Queue {
     if (answer) {
       await this.store.move(row.order.id, action.to, answer.reason, answer.note);
     }
+  }
+
+  /** Opens the receipt. Read-only: the buttons that move the order are on the card behind it. */
+  protected openDetail(row: QueuedOrder): void {
+    this.dialog.open<OrderDetailDialog, OrderDetailDialogData>(OrderDetailDialog, {
+      width: '32rem',
+      maxHeight: '85vh',
+      data: { orderId: row.order.id },
+    });
   }
 
   protected toggleSound(): void {

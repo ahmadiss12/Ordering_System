@@ -168,7 +168,8 @@ export class QueueStore {
   /** Re-reads the queue. Called by the effect above, and by a person pressing refresh. */
   async refresh(): Promise<void> {
     try {
-      const page = await firstValueFrom(this.client.queue([...LIVE_STATUSES], 1, PAGE_SIZE));
+      // newestFirst false: a queue is worked from the order that has waited longest.
+      const page = await firstValueFrom(this.client.queue([...LIVE_STATUSES], false, 1, PAGE_SIZE));
 
       this.ordersSignal.set(page.items);
       this.totalSignal.set(page.totalCount);

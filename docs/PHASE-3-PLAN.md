@@ -371,10 +371,52 @@ when it had eleven minutes left.
 Verified against the running stack: Accept moved an order between columns, Refuse opened the
 dialog, and the reason chosen there — not the pre-selected one — is what landed on the order.
 
-### Step 8 — Order history and detail
+### Step 8 — Order history and detail ✅
 
 The other half of the dashboard: what happened yesterday, one order in full with its event
 trail, and why an order was rejected.
+
+**One receipt, opened from both screens.** It takes an order id, not a row, and loads the order
+itself — a caller handing over the summary it already has would be handing over a copy as old as
+its last refresh, and this is the screen somebody opens precisely because they want to know
+exactly what happened. It is read-only: the buttons live on the queue card behind it, and in the
+history every order is finished and offers no moves at all.
+
+**Why it was refused comes first.** It is the one question somebody opens a refused order to
+answer, and burying it under the receipt would make them hunt. The reason is also on the history
+row itself: somebody counting how often the fryer went down should not have to open twenty orders
+to find out, and three "out of stock" in an hour says something one order at a time does not.
+
+**The history holds still.** The queue refreshes itself because a kitchen mid-service cannot be
+asked to press anything; a history is read deliberately, and a list that reordered itself
+mid-scroll would be worse than one a minute old. It also blanks its rows when a load fails, where
+the queue keeps them — a history still showing the previous filter's rows is answering a question
+nobody asked, while a stale kitchen board is better than an empty one.
+
+**The same list, read from the other end.** A queue is worked oldest-first and a history newest-
+first, and with paging that is not something a client can fix afterwards: the wrong end opens on
+the restaurant's first ever order. The endpoint takes it as a parameter rather than guessing from
+the statuses asked for.
+
+**Wording is a second copy, deliberately, and the rules are not.** The same status is "Refuse" on
+a button, "Refused" on a chip, "Waiting to be accepted" under an order number and "Placed" in the
+trail — one string shipped from the API would be wrong in three of those four places. What is
+never duplicated is which moves are legal, and that still comes from the transition table.
+
+**The bug that made the client's types honest.** Every optional field was typed `| undefined`
+while the runtime returned `null` — the response is `JSON.parse`d straight through, and JSON has
+no undefined. A strict `=== undefined` check put a "could not be completed / no reason given"
+panel on every order that had never been refused, and the compiler was happy because the type said
+the field could only ever be undefined. Fixed at the generator, in its own commit; the compiler
+then pointed at all twelve places relying on it, one of which had already been worked around
+locally instead of fixed.
+
+**A date filter is deliberately not here.** "What happened yesterday" is served by newest-first
+paging, and filtering by day is a reporting concern that belongs with the rest of them in phase 4.
+
+**Not fixed by the screenshots:** an E2E run failed once, on a test unrelated to this step, while
+the dev server was still recompiling files that had just been formatted. It passed on both re-runs
+and in a clean run afterwards. Worth naming rather than quietly re-running.
 
 ### Step 9 — E2E and phase close
 

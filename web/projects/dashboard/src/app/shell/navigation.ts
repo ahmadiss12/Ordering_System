@@ -45,6 +45,12 @@ export const NAV = {
     icon: 'receipt_long',
     roles: RESTAURANT_STAFF,
   },
+  history: {
+    path: 'history',
+    label: 'History',
+    icon: 'history',
+    roles: RESTAURANT_STAFF,
+  },
   menu: {
     path: 'menu',
     label: 'Menu',

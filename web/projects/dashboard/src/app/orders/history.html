@@ -1,0 +1,91 @@
+<header class="intro">
+  <h1>History</h1>
+  <p>Finished orders, newest first.</p>
+</header>
+
+<mat-chip-listbox
+  class="filters"
+  [value]="store.filter()"
+  (change)="store.setFilter($any($event).value ?? store.filter())"
+>
+  @for (filter of filters; track filter.key) {
+    <mat-chip-option [value]="filter" [selected]="filter.key === store.filter().key">
+      {{ filter.label }}
+    </mat-chip-option>
+  }
+</mat-chip-listbox>
+
+@if (store.loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (store.error(); as message) {
+  <mat-card appearance="outlined" class="error">
+    <mat-card-content>
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ message }}</span>
+      <button matButton (click)="store.load()">Try again</button>
+    </mat-card-content>
+  </mat-card>
+} @else if (store.isEmpty()) {
+  <mat-card appearance="outlined" class="empty">
+    <mat-card-content>
+      <mat-icon>inbox</mat-icon>
+      <p>Nothing here yet.</p>
+      <p class="muted">Orders appear once they are delivered, refused or cancelled.</p>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <div class="rows">
+    @for (order of store.orders(); track order.id) {
+      <mat-card appearance="outlined" class="row">
+        <mat-card-content>
+          <div class="head">
+            <button class="number" type="button" (click)="open(order)">
+              {{ order.orderNumber }}
+            </button>
+            <span class="chip" [class]="statusTone(order.status)">
+              {{ statusLabel(order.status) }}
+            </span>
+          </div>
+
+          <p class="who">
+            {{ order.customerName }}
+            <span class="muted">
+              &middot; {{ order.fulfillment === FulfillmentType.Delivery ? 'Delivery' : 'Pickup' }}
+            </span>
+          </p>
+
+          <!-- On the row rather than behind a click. Somebody counting how often the fryer went
+               down should not have to open twenty orders to find out. -->
+          @if (order.rejectionReason !== null) {
+            <p class="reason">
+              <mat-icon>report</mat-icon>
+              {{ reasonLabel(order.rejectionReason) }}
+            </p>
+          }
+
+          <p class="facts">
+            <span>{{ order.placedAt | date: 'EEE d MMM, HH:mm' }}</span>
+            <span>{{ order.itemCount }} item{{ order.itemCount === 1 ? '' : 's' }}</span>
+            <span class="money">{{ order.totalUsd | currency: 'USD' }}</span>
+          </p>
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+
+  <nav class="pager">
+    <button matButton [disabled]="!store.hasPrevious()" (click)="store.goTo(store.page() - 1)">
+      <mat-icon>chevron_left</mat-icon>
+      Newer
+    </button>
+    <span
+      >Page {{ store.page() }} of {{ store.totalPages() }} &middot; {{ store.total() }} orders</span
+    >
+    <button matButton [disabled]="!store.hasNext()" (click)="store.goTo(store.page() + 1)">
+      Older
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </nav>
+}

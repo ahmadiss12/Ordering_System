@@ -34,6 +34,13 @@ public sealed record OrderSummaryResponse(
     string CustomerName,
 
     /// <summary>
+    /// Why the restaurant dropped it, on the row. A history screen scanning yesterday's refusals
+    /// is looking for the pattern — three "out of stock" in an hour says something one order at a
+    /// time does not — and opening each order to find out would hide exactly that.
+    /// </summary>
+    RejectionReason? RejectionReason,
+
+    /// <summary>
     /// What this caller could do with this order right now, from the transition table — the same
     /// list the detail carries, on the row, because a kitchen board draws a button on every card
     /// and asking each order for its detail to find out which would be one request per row per

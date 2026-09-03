@@ -1,0 +1,156 @@
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (error(); as message) {
+  <h2 mat-dialog-title>Order</h2>
+  <mat-dialog-content>
+    <p class="failed">{{ message }}</p>
+  </mat-dialog-content>
+}
+
+@if (order(); as order) {
+  <h2 mat-dialog-title>
+    <span class="number">{{ order.orderNumber }}</span>
+    <span class="chip" [class]="statusTone(order.status)">{{ statusLabel(order.status) }}</span>
+  </h2>
+
+  <mat-dialog-content>
+    <!-- Why it was dropped, first and unmissable. It is the one question somebody opens a
+         refused order to answer, and burying it under the receipt would make them hunt. -->
+    @if (refusal(); as refused) {
+      <section class="refusal">
+        <mat-icon>report</mat-icon>
+        <div>
+          <p class="heading">{{ refused.heading }}</p>
+          <p>{{ refused.reason }}</p>
+          @if (refused.note) {
+            <p class="note">&ldquo;{{ refused.note }}&rdquo;</p>
+          }
+        </div>
+      </section>
+    }
+
+    <section class="facts">
+      <div>
+        <span class="label">Customer</span>
+        <span>{{ order.customerName }}</span>
+      </div>
+      <div>
+        <span class="label">Placed</span>
+        <span>{{ order.placedAt | date: 'EEE d MMM, HH:mm' }}</span>
+      </div>
+      <div>
+        <span class="label">How</span>
+        <span>
+          {{ order.fulfillment === FulfillmentType.Delivery ? 'Delivery' : 'Pickup' }}
+          &middot; promised in {{ order.promisedMinutesMin }}&ndash;{{ order.promisedMinutesMax }}
+          min
+        </span>
+      </div>
+      <div>
+        <span class="label">Payment</span>
+        <span>
+          {{ order.paymentMethod === PaymentMethod.CashOnDelivery ? 'Cash on delivery' : 'Online' }}
+          &middot; {{ order.paymentStatus === PaymentStatus.Paid ? 'paid' : 'not yet paid' }}
+        </span>
+      </div>
+    </section>
+
+    @if (order.customerNote) {
+      <section class="customer-note">
+        <mat-icon>chat_bubble</mat-icon>
+        <p>&ldquo;{{ order.customerNote }}&rdquo;</p>
+      </section>
+    }
+
+    @if (addressLines().length > 0) {
+      <section class="address">
+        <h3>Delivering to</h3>
+        <!-- The order's own copy, as it was when it was placed. The customer may have edited or
+             deleted that address since; this is where the food actually went. -->
+        @for (line of addressLines(); track $index) {
+          <p>{{ line }}</p>
+        }
+      </section>
+    }
+
+    <section class="lines">
+      <h3>What was ordered</h3>
+      @for (line of order.lines; track line.id) {
+        <div class="line">
+          <span class="qty">{{ line.quantity }}&times;</span>
+          <div class="what">
+            <p class="name">{{ line.name }}</p>
+            @for (option of line.options; track $index) {
+              <p class="option">
+                {{ option.groupName }}: {{ option.name }}
+                @if (option.priceDeltaUsd !== 0) {
+                  <span class="delta">
+                    {{ option.priceDeltaUsd > 0 ? '+' : ''
+                    }}{{ option.priceDeltaUsd | currency: 'USD' }}
+                  </span>
+                }
+              </p>
+            }
+            @if (line.note) {
+              <p class="line-note">&ldquo;{{ line.note }}&rdquo;</p>
+            }
+          </div>
+          <span class="money">{{ line.lineTotalUsd | currency: 'USD' }}</span>
+        </div>
+      }
+    </section>
+
+    <mat-divider />
+
+    <section class="totals">
+      <div>
+        <span>Subtotal</span><span>{{ order.subtotalUsd | currency: 'USD' }}</span>
+      </div>
+      @if (order.deliveryFeeUsd > 0) {
+        <div>
+          <span>Delivery</span><span>{{ order.deliveryFeeUsd | currency: 'USD' }}</span>
+        </div>
+      }
+      @if (order.discountUsd > 0) {
+        <div>
+          <span>Discount</span><span>&minus;{{ order.discountUsd | currency: 'USD' }}</span>
+        </div>
+      }
+      <div class="total">
+        <span>Total</span><span>{{ order.totalUsd | currency: 'USD' }}</span>
+      </div>
+      @if (order.totalLbp) {
+        <!-- At the rate frozen when the order was placed, not today's. -->
+        <div class="lbp">
+          <span></span><span>{{ order.totalLbp | number: '1.0-0' }} LBP</span>
+        </div>
+      }
+    </section>
+
+    <section class="trail">
+      <h3>What happened</h3>
+      @for (event of order.events; track $index) {
+        <div class="event">
+          <span class="when">{{ event.at | date: 'HH:mm' }}</span>
+          <div>
+            <p>
+              {{ eventLabel(event.toStatus) }}
+              @if (event.changedBy) {
+                <span class="who">&middot; {{ event.changedBy }}</span>
+              }
+            </p>
+            @if (event.note) {
+              <p class="note">&ldquo;{{ event.note }}&rdquo;</p>
+            }
+          </div>
+        </div>
+      }
+    </section>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button matButton mat-dialog-close cdkFocusInitial>Close</button>
+  </mat-dialog-actions>
+}

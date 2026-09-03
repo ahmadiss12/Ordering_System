@@ -2329,6 +2329,13 @@
             }
           },
           {
+            "name": "newestFirst",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
@@ -4039,6 +4046,7 @@
           "restaurantName",
           "restaurantSlug",
           "customerName",
+          "rejectionReason",
           "availableTransitions"
         ],
         "type": "object",
@@ -4100,6 +4108,16 @@
           },
           "customerName": {
             "type": "string"
+          },
+          "rejectionReason": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RejectionReason"
+              }
+            ]
           },
           "availableTransitions": {
             "type": "array",

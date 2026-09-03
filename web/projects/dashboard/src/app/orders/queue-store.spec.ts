@@ -265,6 +265,7 @@ describe('QueueStore', () => {
       restaurantName: 'FriesLab',
       restaurantSlug: 'frieslab',
       customerName: 'Rita Customer',
+      rejectionReason: null,
       // Empty on purpose: these tests are about grouping and urgency. What a card
       // offers is order-actions.spec.ts.
       availableTransitions: [],

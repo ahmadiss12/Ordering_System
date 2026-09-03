@@ -53,7 +53,7 @@ describe('Shell', () => {
   it('offers an owner every section', () => {
     const fixture = renderAs(Roles.RestaurantOwner);
 
-    expect(sectionLabels(fixture)).toEqual(['Overview', 'Queue', 'Menu', 'Settings']);
+    expect(sectionLabels(fixture)).toEqual(['Overview', 'Queue', 'History', 'Menu', 'Settings']);
   });
 
   it('hides owner-only sections from staff', () => {
@@ -61,7 +61,7 @@ describe('Shell', () => {
 
     // Staff work the queue and edit the menu, but do not change fees, zones or who else has
     // an account.
-    expect(sectionLabels(fixture)).toEqual(['Overview', 'Queue', 'Menu']);
+    expect(sectionLabels(fixture)).toEqual(['Overview', 'Queue', 'History', 'Menu']);
   });
 
   it('offers a platform admin only the sections that are not restaurant-scoped', () => {
@@ -80,6 +80,6 @@ describe('Shell', () => {
 
     // '/' rather than '' for the landing section: an empty segment does not match the URL
     // exactly, and the active highlight silently never appears.
-    expect(hrefs).toEqual(['/', '/orders', '/menu', '/settings']);
+    expect(hrefs).toEqual(['/', '/orders', '/history', '/menu', '/settings']);
   });
 });
