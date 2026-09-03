@@ -10,6 +10,7 @@
     "paths": {
       "api-client": ["./projects/shared/api-client/src/public-api.ts"],
       "auth": ["./projects/shared/auth/src/public-api.ts"],
+      "realtime": ["./projects/shared/realtime/src/public-api.ts"],
       "ui": ["./projects/shared/ui/src/public-api.ts"]
     },
     "noImplicitOverride": true,
@@ -53,6 +54,12 @@
     },
     {
       "path": "./projects/shared/auth/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/shared/realtime/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/shared/realtime/tsconfig.spec.json"
     },
     {
       "path": "./projects/shared/ui/tsconfig.lib.json"

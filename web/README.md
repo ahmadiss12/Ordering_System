@@ -1,6 +1,6 @@
 # Web
 
-The Angular workspace: two applications and three shared libraries.
+The Angular workspace: two applications and four shared libraries.
 
 | Project      | Type        | What it is                                                        |
 | ------------ | ----------- | ----------------------------------------------------------------- |
@@ -8,6 +8,7 @@ The Angular workspace: two applications and three shared libraries.
 | `storefront` | application | The customer-facing ordering site.                                |
 | `api-client` | library     | **Generated.** TypeScript client for the API. Never edit by hand. |
 | `auth`       | library     | Tokens, refresh, route guards, HTTP interceptor.                  |
+| `realtime`   | library     | The live channel to the orders hub, and the poll behind it.       |
 | `ui`         | library     | Presentational pieces both applications share.                    |
 
 ## Prerequisites
@@ -26,15 +27,18 @@ npm start                    # dashboard on http://localhost:4200
 npx ng serve storefront      # storefront on http://localhost:4201
 ```
 
-Both proxy `/api` and `/media` to the backend on `http://localhost:5080`
+Both proxy `/api`, `/media` and `/hubs` to the backend on `http://localhost:5080`
 ([`proxy.conf.json`](proxy.conf.json)), so run the API first — see the root
-[README](../README.md).
+[README](../README.md). The `/hubs` entry carries `ws: true`: without it the dev server proxies
+SignalR's negotiate but not the WebSocket that follows, and the connection quietly falls back to
+long polling in development only — which works, and hides a problem until production.
 
 ## Testing
 
 ```bash
 npx ng test dashboard --watch=false
 npx ng test auth --watch=false
+npx ng test realtime --watch=false
 ```
 
 CI runs the suite for every project that has one. If you add specs to a project, add it to the
@@ -98,8 +102,8 @@ npm — cannot run, because ng-packagr requires every file to sit inside the lib
 
 Nothing is lost by that. These libraries are internal to this workspace and are not published,
 and an application build compiles their sources as part of its own program, so a type error in
-`auth` fails `ng build dashboard`. CI therefore builds the two applications and tests all five
-projects.
+`auth` fails `ng build dashboard`. CI therefore builds the two applications and tests every
+project that has specs.
 
 If a library ever does need publishing, point the `paths` entries at `dist/` and build in
 dependency order — a deliberate trade of developer experience for a shippable package.

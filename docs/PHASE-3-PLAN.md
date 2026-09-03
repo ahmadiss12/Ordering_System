@@ -196,7 +196,7 @@ orders *instead of* their own, so a restaurant owner who orders from a different
 see or cancel that order. It is the security boundary ADR-07 is built on, and widening it deserves
 its own review rather than a change made in passing during a step about something else.
 
-### Step 6 — Live updates
+### Step 6 — Live updates ✅
 
 A kitchen screen that misses an order is worse than no screen. SignalR, scoped by the same
 `restaurant_id` claim the query filters use, with polling as the fallback when a connection
@@ -241,8 +241,46 @@ TypeScript handler is written by hand — and a casing mismatch fails nothing, i
 screen `undefined`. A test reads the raw payload off the wire and asserts the property names and
 that the status is a number, matching the generated numeric enum.
 
-**6b — the screen's end** comes next: connecting, reconnecting, and the poll behind it for the
-minutes a Lebanese mobile connection is gone.
+**6b — the screen's end ✅.** A shared `realtime` library holding one service, `OrderStream`.
+
+**One signal, not two mechanisms.** A screen watches `revision` and refetches whenever it changes.
+That number goes up on a pushed message, on every poll tick, and the moment a dropped connection
+comes back — so "live updates" and "polling fallback" are one thing a screen consumes rather than
+two code paths it has to keep in agreement. The screen never asks whether the socket is up, only
+whether it is behind. Nothing in the library fetches anything: what to refetch is the screen's
+business, and a stream that knew about the orders query would need changing every time a screen
+wanted something else.
+
+**The bump on reconnect is the part that is easy to leave out.** A tablet that loses signal for two
+minutes misses every message sent in those two minutes, and SignalR replays none of them. A screen
+that only listened to pushes would come back looking current and be wrong until the next order
+happened to arrive.
+
+**The poll runs even while the channel is up**, once a minute against ten seconds while it is down.
+A push the server failed to send is swallowed and logged there — deliberately, so a dead socket
+cannot fail a committed order — which means without a backstop the screen would never learn about
+the one order it missed.
+
+**Reconnection never gives up.** SignalR's built-in policy stops after about thirty seconds, and a
+tablet propped up in a kitchen that quietly stopped trying after half a minute of no signal is
+exactly the screen this step exists to prevent. The first connect is handled separately, because
+automatic reconnect only covers a connection that was once up — and the API being down when a
+kitchen opens its tablet in the morning is not exotic.
+
+**The token is checked for expiry before the handshake, not after.** An HTTP request can afford to
+send a stale token and recover from the 401 by replaying itself. A WebSocket handshake gets one
+attempt, and SignalR treats its failure as a connection problem rather than something to refresh
+and retry.
+
+**A test that passed for the wrong reason, caught while writing it.** "Exchanges an expiring token"
+asserted only that the token differed from the expired one — and passed because no refresher was
+provided, the exchange threw, and the catch returned an empty string. It now stubs the refresher
+and asserts the refreshed token by name, plus that a still-good token is not exchanged at all.
+
+**A gap in the generated client, fixed first in its own commit.** Every enum reached the TypeScript
+client as a bare `number`, because an enum arrives in the OpenAPI document as `{"type": "integer"}`
+with its names dropped. A screen accepting an order would have posted `{ to: 2 }` — a magic number
+that means something else the day somebody renumbers the C# enum, with nothing to catch it.
 
 ### Step 7 — Kitchen queue
 

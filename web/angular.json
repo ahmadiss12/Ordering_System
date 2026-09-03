@@ -222,6 +222,32 @@
           }
         }
       }
+    },
+    "realtime": {
+      "projectType": "library",
+      "root": "projects/shared/realtime",
+      "sourceRoot": "projects/shared/realtime/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/shared/realtime/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/shared/realtime/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/shared/realtime/tsconfig.spec.json"
+          }
+        }
+      }
     }
   }
 }

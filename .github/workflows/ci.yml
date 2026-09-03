@@ -165,6 +165,7 @@ jobs:
           npx ng test dashboard --watch=false
           npx ng test storefront --watch=false
           npx ng test auth --watch=false
+          npx ng test realtime --watch=false
           npx ng test ui --watch=false
 
   e2e:
