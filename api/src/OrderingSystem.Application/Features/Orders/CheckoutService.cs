@@ -221,7 +221,7 @@ public sealed class CheckoutService(
             .FirstAsync(ct);
 
         // The restaurant's own calendar day, so a number reads as the date a kitchen worked.
-        var businessDate = DateOnly.FromDateTime(clock.LocalNow.DateTime);
+        var businessDate = clock.LocalToday;
         var sequence = await orderNumbers.NextAsync(restaurantId, businessDate, ct);
 
         return new Order

@@ -360,6 +360,63 @@ public sealed class CheckoutTests(ApiFactory factory) : IClassFixture<ApiFactory
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task A_closed_restaurant_says_so_rather_than_taking_the_order()
+    {
+        var client = await SignInAsync("rita@example.test");
+        var restaurant = await RestaurantAsync();
+        await StockBasketAsync(client, restaurant.Id, "Cheese Lab Fries", 2);
+        var quote = await QuoteAsync(client, restaurant.Id, "Pickup");
+
+        // FriesLab runs from noon until two in the morning, so nine is firmly shut. Writing this
+        // test needed a clock the test could move — before that it either passed or failed
+        // depending on the hour the suite happened to run.
+        factory.Clock.LocalTimeOfDay = new TimeOnly(9, 0);
+
+        try
+        {
+            var response = await PostCheckoutAsync(client, restaurant.Id,
+                new CheckoutRequest(FulfillmentType.Pickup, null, PaymentMethod.CashOnDelivery, null, quote.TotalUsd, Guid.NewGuid()));
+
+            response.Status.ShouldBe(HttpStatusCode.Conflict);
+            response.Body.ShouldContain("closed");
+        }
+        finally
+        {
+            factory.Clock.LocalTimeOfDay = TestClock.DefaultLocalTime;
+            await ClearAsync(client, restaurant.Id);
+        }
+    }
+
+    [Fact]
+    public async Task An_order_placed_after_midnight_still_belongs_to_that_evening_service()
+    {
+        var client = await SignInAsync("rita@example.test");
+        var restaurant = await RestaurantAsync();
+        await StockBasketAsync(client, restaurant.Id, "Cheese Lab Fries", 2);
+        var quote = await QuoteAsync(client, restaurant.Id, "Pickup");
+
+        // One in the morning: FriesLab's window opened at noon the day before and runs to two.
+        factory.Clock.LocalTimeOfDay = new TimeOnly(1, 0);
+
+        try
+        {
+            var placed = await CheckoutAsync(client, restaurant.Id,
+                new CheckoutRequest(FulfillmentType.Pickup, null, PaymentMethod.CashOnDelivery, null, quote.TotalUsd, Guid.NewGuid()));
+
+            // Open, so the order goes through. The number carries the calendar date rather than
+            // the shift's — a kitchen open past midnight sees its numbering reset mid-service,
+            // which is the trade OrderNumberSequence documents.
+            placed.Status.ShouldBe(OrderStatus.Placed);
+            placed.OrderNumber.ShouldContain(factory.Clock.LocalToday.ToString("yyMMdd", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        finally
+        {
+            factory.Clock.LocalTimeOfDay = TestClock.DefaultLocalTime;
+            await ClearAsync(client, restaurant.Id);
+        }
+    }
+
     // ------------------------------------------------------------------ the double tap
 
     [Fact]

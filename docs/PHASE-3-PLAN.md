@@ -136,6 +136,27 @@ Reading and moving orders, with the tenant guard on every one.
 Customer: place, list mine, one order in detail, cancel while it is still cancellable.
 Restaurant: the queue, accept, reject with a reason, advance status.
 
+Split in two, because reading and moving are different jobs and each deserves its own review.
+
+**5a — reading ✅.** A customer's history, a kitchen's queue filtered by status, and one order in
+full with its lines, its options, its event trail and the delivery address as recorded at the
+time. The detail also returns the moves this caller could make next, straight from the transition
+table, so a screen never draws a button that would be refused. Nothing restates the tenant rule:
+the query filter on `Order` has already decided what the caller may see, and repeating it would
+be a second place for it to be wrong.
+
+**A test-design fault fixed here.** Every test that placed an order failed for the ten hours a day
+FriesLab is shut — the checkout behaving correctly and the tests being wrong to depend on the hour
+they ran at. The integration tests now run on a clock whose local time is pinned to one in the
+afternoon and can be moved, which is what `IClock` was built for. That also made two tests
+possible that could not be written before: a closed restaurant refusing an order, and an order
+placed at one in the morning still landing inside FriesLab's overnight window.
+
+Its UTC time deliberately stays real. Tokens are validated by the framework's own clock, which no
+test can move, so a UTC time hours away from the real one would make every request arrive expired.
+
+**5b — moving** comes next: accept, reject, advance, cancel, each one through the state machine.
+
 ### Step 6 — Live updates
 
 A kitchen screen that misses an order is worse than no screen. SignalR, scoped by the same

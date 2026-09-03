@@ -81,10 +81,18 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             // reads the reset link a user would have clicked.
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Emails);
+
+            // Opening hours are wall-clock, so without this every test that places an order
+            // fails for the ten hours a day the seeded restaurant is shut.
+            services.RemoveAll<IClock>();
+            services.AddSingleton<IClock>(Clock);
         });
     }
 
     public AppDbContext CreateDbContext(ITenantContext? tenant = null) => _database.CreateContext(tenant);
+
+    /// <summary>The clock the server runs on. Move its local time to test opening hours.</summary>
+    public TestClock Clock { get; } = new();
 
     /// <summary>Where the in-process host writes warnings and errors during a test run.</summary>
     public static string ServerLogPath { get; } =
