@@ -21,7 +21,7 @@
       "injectionTokenType": "InjectionToken",
       "rxJsVersion": 7.0,
       "dateTimeType": "Date",
-      "nullValue": "Undefined",
+      "nullValue": "Null",
       "generateClientClasses": true,
       "generateClientInterfaces": true,
       "generateOptionalParameters": true,

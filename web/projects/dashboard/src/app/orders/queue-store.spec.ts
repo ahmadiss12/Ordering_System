@@ -164,7 +164,7 @@ describe('QueueStore', () => {
 
     expect(ok).toBe(true);
     expect(moves.sent).toEqual([
-      { orderId: 'a', to: OrderStatus.Accepted, reason: undefined, note: undefined },
+      { orderId: 'a', to: OrderStatus.Accepted, reason: null, note: null },
     ]);
 
     // The server pushes the change too, which would eventually refresh this board — but waiting
@@ -314,8 +314,8 @@ class FakeMoveClient {
   readonly sent: {
     orderId: string;
     to: OrderStatus;
-    reason: RejectionReason | undefined;
-    note: string | undefined;
+    reason: RejectionReason | null;
+    note: string | null;
   }[] = [];
 
   private failing = false;

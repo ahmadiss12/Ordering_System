@@ -297,7 +297,7 @@ export class MenuStore {
         this.groupsClient.create({
           name,
           minSelect: rule.minSelect,
-          maxSelect: rule.maxSelect ?? undefined,
+          maxSelect: rule.maxSelect ?? null,
           sortOrder,
         }),
       );
@@ -316,7 +316,7 @@ export class MenuStore {
         this.groupsClient.update(group.id, {
           name: changes.name ?? group.name,
           minSelect: rule ? rule.minSelect : group.minSelect,
-          maxSelect: rule ? (rule.maxSelect ?? undefined) : group.maxSelect,
+          maxSelect: rule ? (rule.maxSelect ?? null) : group.maxSelect,
           sortOrder: group.sortOrder,
         }),
       );

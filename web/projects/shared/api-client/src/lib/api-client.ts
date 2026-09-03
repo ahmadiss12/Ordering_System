@@ -2765,7 +2765,7 @@ export class RestaurantsClient implements IRestaurantsClient {
 export interface AddCartLineRequest {
     menuItemId: string;
     quantity: number;
-    note: string | undefined;
+    note: string | null;
     options: ChosenOptionRequest[];
 
     [key: string]: any;
@@ -2775,10 +2775,10 @@ export interface AttachedOptionGroupResponse {
     optionGroupId: string;
     name: string;
     sortOrder: number;
-    minSelectOverride: number | undefined;
-    maxSelectOverride: number | undefined;
+    minSelectOverride: number | null;
+    maxSelectOverride: number | null;
     effectiveMinSelect: number;
-    effectiveMaxSelect: number | undefined;
+    effectiveMaxSelect: number | null;
     options: OptionResponse[];
 
     [key: string]: any;
@@ -2787,8 +2787,8 @@ export interface AttachedOptionGroupResponse {
 export interface AttachOptionGroupRequest {
     optionGroupId: string;
     sortOrder: number;
-    minSelectOverride: number | undefined;
-    maxSelectOverride: number | undefined;
+    minSelectOverride: number | null;
+    maxSelectOverride: number | null;
 
     [key: string]: any;
 }
@@ -2816,9 +2816,9 @@ export interface CartLineResponse {
     id: string;
     menuItemId: string;
     name: string;
-    imageUrl: string | undefined;
+    imageUrl: string | null;
     quantity: number;
-    note: string | undefined;
+    note: string | null;
     isAvailable: boolean;
     unitPriceUsd: number;
     lineTotalUsd: number;
@@ -2851,17 +2851,17 @@ export interface CategoryResponse {
 
 export interface ChangeOrderStatusRequest {
     to: OrderStatus;
-    reason: RejectionReason | undefined;
-    note: string | undefined;
+    reason: RejectionReason | null;
+    note: string | null;
 
     [key: string]: any;
 }
 
 export interface CheckoutRequest {
     fulfillment: FulfillmentType;
-    addressId: string | undefined;
+    addressId: string | null;
     paymentMethod: PaymentMethod;
-    customerNote: string | undefined;
+    customerNote: string | null;
     expectedTotalUsd: number;
     idempotencyKey: string;
 
@@ -2885,7 +2885,7 @@ export interface CreateCategoryRequest {
 export interface CreateMenuItemRequest {
     categoryId: string;
     name: string;
-    description: string | undefined;
+    description: string | null;
     basePriceUsd: number;
     sortOrder: number;
 
@@ -2895,7 +2895,7 @@ export interface CreateMenuItemRequest {
 export interface CreateOptionGroupRequest {
     name: string;
     minSelect: number;
-    maxSelect: number | undefined;
+    maxSelect: number | null;
     sortOrder: number;
 
     [key: string]: any;
@@ -2921,11 +2921,11 @@ export enum DayOfWeek {
 }
 
 export interface DeliveryAddressResponse {
-    zoneName: string | undefined;
-    line1: string | undefined;
-    building: string | undefined;
-    floor: string | undefined;
-    landmark: string | undefined;
+    zoneName: string | null;
+    line1: string | null;
+    building: string | null;
+    floor: string | null;
+    landmark: string | null;
 
     [key: string]: any;
 }
@@ -2956,7 +2956,7 @@ export interface ItemOptionGroup {
     id: string;
     name: string;
     minSelect: number;
-    maxSelect: number | undefined;
+    maxSelect: number | null;
     sortOrder: number;
     options: ItemOption[];
 
@@ -2984,9 +2984,9 @@ export interface MenuItemDetail {
     restaurantId: string;
     categoryId: string;
     name: string;
-    description: string | undefined;
+    description: string | null;
     basePriceUsd: number;
-    imageUrl: string | undefined;
+    imageUrl: string | null;
     isAvailable: boolean;
     optionGroups: ItemOptionGroup[];
 
@@ -2997,9 +2997,9 @@ export interface MenuItemResponse {
     id: string;
     categoryId: string;
     name: string;
-    description: string | undefined;
+    description: string | null;
     basePriceUsd: number;
-    imageUrl: string | undefined;
+    imageUrl: string | null;
     isAvailable: boolean;
     sortOrder: number;
 
@@ -3009,9 +3009,9 @@ export interface MenuItemResponse {
 export interface MenuItemSummary {
     id: string;
     name: string;
-    description: string | undefined;
+    description: string | null;
     basePriceUsd: number;
-    imageUrl: string | undefined;
+    imageUrl: string | null;
     isAvailable: boolean;
     sortOrder: number;
     hasOptions: boolean;
@@ -3031,7 +3031,7 @@ export interface OptionGroupResponse {
     id: string;
     name: string;
     minSelect: number;
-    maxSelect: number | undefined;
+    maxSelect: number | null;
     sortOrder: number;
     options: OptionResponse[];
 
@@ -3064,15 +3064,15 @@ export interface OrderDetailResponse {
     taxUsd: number;
     discountUsd: number;
     totalUsd: number;
-    totalLbp: number | undefined;
+    totalLbp: number | null;
     paymentMethod: PaymentMethod;
     paymentStatus: PaymentStatus;
     promisedMinutesMin: number;
     promisedMinutesMax: number;
-    customerNote: string | undefined;
-    rejectionReason: RejectionReason | undefined;
-    rejectionNote: string | undefined;
-    deliveryAddress: DeliveryAddressResponse | undefined;
+    customerNote: string | null;
+    rejectionReason: RejectionReason | null;
+    rejectionNote: string | null;
+    deliveryAddress: DeliveryAddressResponse | null;
     lines: OrderLineResponse[];
     events: OrderEventResponse[];
     availableTransitions: OrderStatus[];
@@ -3081,10 +3081,10 @@ export interface OrderDetailResponse {
 }
 
 export interface OrderEventResponse {
-    fromStatus: OrderStatus | undefined;
+    fromStatus: OrderStatus | null;
     toStatus: OrderStatus;
-    changedBy: string | undefined;
-    note: string | undefined;
+    changedBy: string | null;
+    note: string | null;
     at: Date;
 
     [key: string]: any;
@@ -3105,7 +3105,7 @@ export interface OrderLineResponse {
     quantity: number;
     unitPriceUsd: number;
     lineTotalUsd: number;
-    note: string | undefined;
+    note: string | null;
     options: OrderLineOptionResponse[];
 
     [key: string]: any;
@@ -3182,7 +3182,7 @@ export interface PlacedOrderResponse {
     subtotalUsd: number;
     deliveryFeeUsd: number;
     totalUsd: number;
-    totalLbp: number | undefined;
+    totalLbp: number | null;
     promisedMinutesMin: number;
     promisedMinutesMax: number;
     paymentMethod: PaymentMethod;
@@ -3193,11 +3193,11 @@ export interface PlacedOrderResponse {
 }
 
 export interface ProblemDetails {
-    type?: string | undefined;
-    title?: string | undefined;
-    status?: number | undefined;
-    detail?: string | undefined;
-    instance?: string | undefined;
+    type?: string | null;
+    title?: string | null;
+    status?: number | null;
+    detail?: string | null;
+    instance?: string | null;
 
     [key: string]: any;
 }
@@ -3211,14 +3211,14 @@ export interface QuoteResponse {
     taxUsd: number;
     discountUsd: number;
     totalUsd: number;
-    totalLbp: number | undefined;
+    totalLbp: number | null;
     promisedMinutesMin: number;
     promisedMinutesMax: number;
     minOrderUsd: number;
     meetsMinimum: boolean;
     shortfallUsd: number;
     hasUnavailableItems: boolean;
-    deliveryZoneName: string | undefined;
+    deliveryZoneName: string | null;
 
     [key: string]: any;
 }
@@ -3258,9 +3258,9 @@ export interface RestaurantDetail {
     id: string;
     name: string;
     slug: string;
-    description: string | undefined;
-    logoUrl: string | undefined;
-    coverUrl: string | undefined;
+    description: string | null;
+    logoUrl: string | null;
+    coverUrl: string | null;
     phone: string;
     minOrderUsd: number;
     defaultPrepMinutes: number;
@@ -3285,14 +3285,14 @@ export interface RestaurantSummary {
     id: string;
     name: string;
     slug: string;
-    description: string | undefined;
-    logoUrl: string | undefined;
+    description: string | null;
+    logoUrl: string | null;
     minOrderUsd: number;
     defaultPrepMinutes: number;
     isAcceptingOrders: boolean;
     isOpenNow: boolean;
-    deliveryFeeUsd: number | undefined;
-    estimatedMinutes: number | undefined;
+    deliveryFeeUsd: number | null;
+    estimatedMinutes: number | null;
 
     [key: string]: any;
 }
@@ -3305,7 +3305,7 @@ export interface SetAvailabilityRequest {
 
 export interface UpdateCartLineRequest {
     quantity: number;
-    note: string | undefined;
+    note: string | null;
 
     [key: string]: any;
 }
@@ -3321,7 +3321,7 @@ export interface UpdateCategoryRequest {
 export interface UpdateMenuItemRequest {
     categoryId: string;
     name: string;
-    description: string | undefined;
+    description: string | null;
     basePriceUsd: number;
     sortOrder: number;
 
@@ -3331,7 +3331,7 @@ export interface UpdateMenuItemRequest {
 export interface UpdateOptionGroupRequest {
     name: string;
     minSelect: number;
-    maxSelect: number | undefined;
+    maxSelect: number | null;
     sortOrder: number;
 
     [key: string]: any;

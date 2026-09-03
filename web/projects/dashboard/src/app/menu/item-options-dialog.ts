@@ -134,8 +134,8 @@ export class ItemOptionsDialog {
           optionGroupId: row.group.id,
           // Appended rather than inserted, so attaching one group does not reorder the others.
           sortOrder: this.attachedCount(),
-          minSelectOverride: undefined,
-          maxSelectOverride: undefined,
+          minSelectOverride: null,
+          maxSelectOverride: null,
         })
       : await this.store.detachOptionGroup(this.data.item.id, row.group.id);
 
@@ -161,7 +161,7 @@ export class ItemOptionsDialog {
       optionGroupId: row.group.id,
       sortOrder: row.sortOrder,
       minSelectOverride: rule.minSelect,
-      maxSelectOverride: rule.maxSelect ?? undefined,
+      maxSelectOverride: rule.maxSelect ?? null,
     });
 
     if (ok) {
@@ -175,8 +175,8 @@ export class ItemOptionsDialog {
     const ok = await this.store.attachOptionGroup(this.data.item.id, {
       optionGroupId: row.group.id,
       sortOrder: row.sortOrder,
-      minSelectOverride: undefined,
-      maxSelectOverride: undefined,
+      minSelectOverride: null,
+      maxSelectOverride: null,
     });
 
     if (ok) {
@@ -195,6 +195,6 @@ export class ItemOptionsDialog {
 }
 
 /** Null and undefined both mean "not overridden"; zero is a real minimum. */
-function isSet(value: number | undefined): boolean {
+function isSet(value: number | null | undefined): boolean {
   return value !== undefined && value !== null;
 }

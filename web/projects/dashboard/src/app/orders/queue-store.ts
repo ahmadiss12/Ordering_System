@@ -141,8 +141,8 @@ export class QueueStore {
       await firstValueFrom(
         this.moveClient.changeStatus(orderId, {
           to,
-          reason: reason ?? undefined,
-          note: note ?? undefined,
+          reason,
+          note,
         }),
       );
     } catch (error) {

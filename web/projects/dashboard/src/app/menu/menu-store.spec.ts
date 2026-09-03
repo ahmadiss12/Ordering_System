@@ -92,7 +92,7 @@ describe('MenuStore', () => {
       removeImage: vi.fn((id: string) =>
         of({
           ...items.find((i) => i.id === id),
-          imageUrl: undefined,
+          imageUrl: null,
         } as unknown as MenuItemResponse),
       ),
     };
@@ -341,7 +341,7 @@ describe('MenuStore', () => {
     expect(groupApi.create).toHaveBeenCalledWith({
       name: 'Extras',
       minSelect: 0,
-      maxSelect: undefined,
+      maxSelect: null,
       sortOrder: 1,
     });
   });
@@ -389,16 +389,16 @@ describe('MenuStore', () => {
     await store.attachOptionGroup('item-1', {
       optionGroupId: 'sauces',
       sortOrder: 0,
-      minSelectOverride: undefined,
-      maxSelectOverride: undefined,
+      minSelectOverride: null,
+      maxSelectOverride: null,
     });
 
     // Undefined, not zero: zero is a real minimum, and would silently become an override.
     expect(itemApi.attachOptionGroup).toHaveBeenCalledWith('item-1', {
       optionGroupId: 'sauces',
       sortOrder: 0,
-      minSelectOverride: undefined,
-      maxSelectOverride: undefined,
+      minSelectOverride: null,
+      maxSelectOverride: null,
     });
   });
 
@@ -420,7 +420,7 @@ describe('MenuStore', () => {
     return {
       categoryId: 'burgers',
       name: 'New',
-      description: undefined,
+      description: null,
       basePriceUsd: 9,
       sortOrder: 2,
     };
@@ -435,9 +435,9 @@ describe('MenuStore', () => {
       id,
       categoryId,
       name,
-      description: undefined,
+      description: null,
       basePriceUsd: 5,
-      imageUrl: undefined,
+      imageUrl: null,
       isAvailable: true,
       sortOrder,
     } as unknown as MenuItemResponse;
