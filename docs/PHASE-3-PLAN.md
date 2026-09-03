@@ -202,6 +202,48 @@ A kitchen screen that misses an order is worse than no screen. SignalR, scoped b
 `restaurant_id` claim the query filters use, with polling as the fallback when a connection
 drops — a phone on Lebanese mobile data will drop.
 
+Split in two: the channel, then the screen's end of it.
+
+**6a — the hub ✅.** A hub at `/hubs/orders` that pushes an order change to the kitchen watching it
+and the customer waiting on it.
+
+**It has no methods a client can call.** That is the design, not an omission. A hub method taking a
+group name would let any connection ask to join `restaurant:{somebody else}` — the entire isolation
+model undone by one string parameter. Membership is decided on connect, from claims on a token this
+server signed, and a client's only power is to connect or not.
+
+**One group per connection, and the either/or is the query filter's.** A caller with a restaurant
+claim sees that restaurant's orders *instead of* their own, so the restaurant group is already
+everything they are entitled to hear. **This was found by a failing test, not by design:**
+`Clients.Groups` walks each group in turn without tracking connections it has already reached, so a
+cook ordering their own lunch — in the restaurant group and their own customer group — had the same
+order pushed to their screen twice. The comment claiming SignalR deduplicated was simply wrong.
+
+**The message carries an id and a status, not the order.** A push carrying names, prices and
+addresses would be a second copy of the order contract that never passes through the query filters,
+so a mistake in a group name would leak a customer's address rather than an id they already have.
+And a payload goes stale the moment it is sent; a screen that refetches shows what is in the
+database now.
+
+**A bearer token in a query string, in exactly one place.** A browser cannot set an `Authorization`
+header on a WebSocket, so SignalR sends the token as `?access_token=`. That is accepted on the hub
+path and nowhere else: query strings end up in proxy logs, browser history and referrer headers, so
+it is tolerated where the browser leaves no choice and refused everywhere else. A test posts a valid
+token to a normal endpoint that way and insists on a 401.
+
+**Nothing is pushed inside a transaction, and a failed push never fails a request.** A message
+cannot be rolled back, so telling a kitchen about an order that then failed to save would have them
+cooking food nobody ordered. The mirror image matters as much: a socket that has gone away must not
+turn a committed order into a 500, or the customer tries again and the kitchen cooks it twice.
+
+**The one contract no generated client checks.** SignalR is not in the OpenAPI document, so the
+TypeScript handler is written by hand — and a casing mismatch fails nothing, it just hands the
+screen `undefined`. A test reads the raw payload off the wire and asserts the property names and
+that the status is a number, matching the generated numeric enum.
+
+**6b — the screen's end** comes next: connecting, reconnecting, and the poll behind it for the
+minutes a Lebanese mobile connection is gone.
+
 ### Step 7 — Kitchen queue
 
 The screen staff live in during service. Orders grouped by status, newest first, the next action

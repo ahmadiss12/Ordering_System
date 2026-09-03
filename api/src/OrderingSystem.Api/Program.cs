@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using OrderingSystem.Api.Auth;
 using OrderingSystem.Api.Middleware;
 using OrderingSystem.Api.OpenApi;
+using OrderingSystem.Api.Realtime;
 using OrderingSystem.Application;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Application.Features.Auth;
@@ -21,6 +22,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi(options => options.AddOperationTransformer<OperationIdTransformer>());
+
+// The live channel a kitchen screen listens on. See OrdersHub for why it has no client-callable
+// methods and why group membership comes from claims rather than from anything the client sends.
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IOrderNotifier, SignalROrderNotifier>();
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
@@ -60,6 +66,26 @@ builder.Services
 
             // The default five minutes means an expired token keeps working for five more.
             ClockSkew = TimeSpan.FromSeconds(30),
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // A browser cannot set an Authorization header on a WebSocket, so SignalR sends
+                // the token in the query string instead. This is the only place that is accepted,
+                // and it is scoped to the hub path: allowing ?access_token= across the whole API
+                // would put bearer tokens into every proxy log and browser history on the way.
+                var token = context.Request.Query["access_token"];
+
+                if (!string.IsNullOrEmpty(token)
+                    && context.HttpContext.Request.Path.StartsWithSegments(HubRoutes.Orders))
+                {
+                    context.Token = token;
+                }
+
+                return Task.CompletedTask;
+            },
         };
     });
 
@@ -105,6 +131,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<OrdersHub>(HubRoutes.Orders);
 
 // Liveness probe. Kept trivial on purpose: it must not touch the database,
 // or a slow query will report the whole API as down.

@@ -9,6 +9,9 @@
          started in a container per test run (ADR-18). -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Testcontainers.MsSql" />
+    <!-- A real SignalR client against the in-process host, so who hears what is proved
+         end to end rather than asserted about the hub class in isolation. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <!-- Used to build real images in-test rather than embedding base64 blobs. -->
     <PackageReference Include="SixLabors.ImageSharp" />
   </ItemGroup>

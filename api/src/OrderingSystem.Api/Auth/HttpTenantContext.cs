@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.AspNetCore.Http;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Domain.Enums;
 
@@ -16,25 +16,19 @@ namespace OrderingSystem.Api.Auth;
 public sealed class HttpTenantContext(IHttpContextAccessor accessor) : ITenantContext
 {
     /// <summary>Claim carrying the restaurant a staff member belongs to.</summary>
-    public const string RestaurantIdClaim = "restaurant_id";
+    public const string RestaurantIdClaim = TenantClaims.RestaurantId;
 
     /// <summary>Role claim type. Matches the RoleClaimType configured on the bearer handler.</summary>
-    public const string RoleClaim = "role";
+    public const string RoleClaim = TenantClaims.Role;
 
     private readonly IHttpContextAccessor _accessor = accessor;
 
     private ClaimsPrincipal? Principal => _accessor.HttpContext?.User;
 
-    public Guid? UserId => ReadGuid(JwtRegisteredClaimNames.Sub);
+    public Guid? UserId => TenantClaims.UserIdOf(Principal);
 
-    public Guid? RestaurantId => ReadGuid(RestaurantIdClaim);
+    public Guid? RestaurantId => TenantClaims.RestaurantIdOf(Principal);
 
     public bool IsPlatformAdmin =>
         Principal?.IsInRole(nameof(RoleType.PlatformAdmin)) ?? false;
-
-    private Guid? ReadGuid(string claimType)
-    {
-        var raw = Principal?.FindFirstValue(claimType);
-        return Guid.TryParse(raw, out var value) ? value : null;
-    }
 }

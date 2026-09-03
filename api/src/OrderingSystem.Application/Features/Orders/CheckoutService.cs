@@ -29,7 +29,8 @@ public sealed class CheckoutService(
     IValidationService validation,
     IClock clock,
     CartPricing pricing,
-    IOrderNumberAllocator orderNumbers)
+    IOrderNumberAllocator orderNumbers,
+    IOrderNotifier notifier)
 {
     public async Task<PlacedOrderResponse> CheckoutAsync(
         Guid restaurantId, CheckoutRequest request, CancellationToken ct = default)
@@ -124,6 +125,12 @@ public sealed class CheckoutService(
         // One SaveChanges, so the order, its lines, its first event and the emptied basket either
         // all happen or none of them do.
         await db.SaveChangesAsync(ct);
+
+        // After the commit, never inside it. A message cannot be rolled back, so a kitchen told
+        // about an order that then failed to save would be cooking food nobody ordered. The
+        // notifier swallows its own failures for the mirror-image reason.
+        await notifier.OrderChangedAsync(restaurantId, userId,
+            new OrderChanged(order.Id, order.OrderNumber, order.Status, null, order.PlacedAt), ct);
 
         return new PlacedOrderResponse(
             order.Id,

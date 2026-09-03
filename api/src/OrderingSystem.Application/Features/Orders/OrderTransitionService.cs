@@ -27,7 +27,8 @@ public sealed class OrderTransitionService(
     ITenantGuard guard,
     IValidationService validation,
     IClock clock,
-    OrderQueryService orders)
+    OrderQueryService orders,
+    IOrderNotifier notifier)
 {
     public async Task<OrderDetailResponse> ChangeStatusAsync(
         Guid orderId, ChangeOrderStatusRequest request, CancellationToken ct = default)
@@ -94,6 +95,11 @@ public sealed class OrderTransitionService(
         {
             throw new ConflictException(await RaceMessageAsync(orderId, ct));
         }
+
+        // After the commit, never inside it, and after the concurrency check in particular: the
+        // tablet that lost the race must not announce a move it did not make.
+        await notifier.OrderChangedAsync(order.RestaurantId, order.CustomerId,
+            new OrderChanged(order.Id, order.OrderNumber, request.To, from, clock.UtcNow), ct);
 
         // The whole order back, not just the new status: the screen that pressed the button wants
         // the refreshed trail and the next set of buttons, and asking for them separately would
