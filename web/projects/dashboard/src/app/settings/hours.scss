@@ -1,0 +1,128 @@
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+h2 {
+  margin: 0 0 0.25rem;
+  font: var(--mat-sys-title-medium);
+}
+
+.muted {
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// The answer to "these look right, so why is nobody ordering?" — put where somebody editing the
+// hours is already looking, rather than left for them to work out from the times.
+.now {
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-primary-container);
+  background: var(--mat-sys-primary-container);
+
+  &.shut {
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container-high);
+  }
+}
+
+.week {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+}
+
+.day {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  &:first-child {
+    border-top: 0;
+  }
+
+  // "Add hours" broke over two lines when a day held two windows. A button whose label wraps
+  // reads as a mistake even when it works.
+  > button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+.label {
+  flex: 0 0 6.5rem;
+  font: var(--mat-sys-body-large);
+}
+
+.windows {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  min-width: 0;
+}
+
+.window {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+// Native time inputs rather than a Material picker: they are the control every phone and tablet
+// already knows how to show, including the twelve-hour keypad on a device set to it.
+input[type='time'] {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.overnight {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.closed {
+  color: var(--mat-sys-outline);
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.failed {
+  margin: 0.75rem 0 0;
+  color: var(--mat-sys-error);
+}

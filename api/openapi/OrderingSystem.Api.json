@@ -1450,6 +1450,124 @@
         }
       }
     },
+    "/api/restaurant/hours": {
+      "get": {
+        "tags": [
+          "RestaurantHours"
+        ],
+        "operationId": "RestaurantHours_Get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyHoursResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyHoursResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyHoursResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "RestaurantHours"
+        ],
+        "operationId": "RestaurantHours_Set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetWeeklyHoursRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetWeeklyHoursRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetWeeklyHoursRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyHoursResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyHoursResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyHoursResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/restaurant/menu-items": {
       "get": {
         "tags": [
@@ -3746,13 +3864,13 @@
       },
       "OpeningWindow": {
         "required": [
-          "dayOfWeek",
+          "day",
           "openTime",
           "closeTime"
         ],
         "type": "object",
         "properties": {
-          "dayOfWeek": {
+          "day": {
             "$ref": "#/components/schemas/DayOfWeek"
           },
           "openTime": {
@@ -5034,6 +5152,24 @@
           }
         }
       },
+      "SetWeeklyHoursRequest": {
+        "required": [
+          "windows",
+          "confirmClosedIndefinitely"
+        ],
+        "type": "object",
+        "properties": {
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpeningWindow"
+            }
+          },
+          "confirmClosedIndefinitely": {
+            "type": "boolean"
+          }
+        }
+      },
       "UpdateCartLineRequest": {
         "required": [
           "quantity",
@@ -5243,6 +5379,28 @@
           }
         }
       },
+      "WeeklyHoursResponse": {
+        "required": [
+          "windows",
+          "isOpenNow",
+          "isClosedIndefinitely"
+        ],
+        "type": "object",
+        "properties": {
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpeningWindow"
+            }
+          },
+          "isOpenNow": {
+            "type": "boolean"
+          },
+          "isClosedIndefinitely": {
+            "type": "boolean"
+          }
+        }
+      },
       "ZoneDelivery": {
         "required": [
           "zoneId",
@@ -5300,6 +5458,9 @@
     },
     {
       "name": "RestaurantCategories"
+    },
+    {
+      "name": "RestaurantHours"
     },
     {
       "name": "RestaurantMenuItems"

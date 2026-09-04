@@ -1,0 +1,103 @@
+<mat-card appearance="outlined">
+  <mat-card-content>
+    <div class="head">
+      <div>
+        <h2>Opening hours</h2>
+        <p class="muted">
+          When customers can order. A kitchen that is open but cannot cope should
+          <strong>pause orders</strong> on the queue instead.
+        </p>
+      </div>
+
+      @if (!store.loading()) {
+        <span class="now" [class.shut]="!store.isOpenNow()">
+          {{ store.isOpenNow() ? 'Open now' : 'Closed now' }}
+        </span>
+      }
+    </div>
+
+    @if (store.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+
+    @if (store.error(); as message) {
+      <p class="failed">{{ message }}</p>
+    }
+
+    <!-- Not drawn until the week has actually arrived. The draft starts as seven empty days,
+         and seven rows saying "Closed" is a confident answer — a failed load that rendered
+         them would tell an owner their restaurant is shut all week. -->
+    @if (store.loaded()) {
+      <div class="week">
+        @for (day of store.draft(); track day.day) {
+          <div class="day">
+            <span class="label">{{ day.label }}</span>
+
+            <div class="windows">
+              @for (window of day.windows; track $index) {
+                <div class="window">
+                  <input
+                    type="time"
+                    [value]="window.open"
+                    (change)="onTime(day.day, $index, 'open', $event)"
+                    aria-label="Opens"
+                  />
+                  <span class="dash">&ndash;</span>
+                  <input
+                    type="time"
+                    [value]="window.close"
+                    (change)="onTime(day.day, $index, 'close', $event)"
+                    aria-label="Closes"
+                  />
+
+                  <!-- The case people get wrong. A close time earlier than an open time is how an
+                       overnight kitchen is written, so the screen says what it means outright. -->
+                  @if (overnightNote(window); as note) {
+                    <span class="overnight">
+                      <mat-icon>bedtime</mat-icon>
+                      {{ note }}
+                    </span>
+                  }
+
+                  <button
+                    matIconButton
+                    matTooltip="Remove"
+                    (click)="store.removeWindow(day.day, $index)"
+                  >
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              } @empty {
+                <span class="closed">Closed</span>
+              }
+            </div>
+
+            <button matButton (click)="store.addWindow(day.day)">
+              <mat-icon>add</mat-icon>
+              Add hours
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="actions">
+        <button matButton (click)="store.copyFirstDayToAll()">Copy Monday to every day</button>
+
+        <span class="spacer"></span>
+
+        @if (store.dirty()) {
+          <button matButton [disabled]="store.saving()" (click)="store.discard()">Discard</button>
+        }
+        <button matButton="filled" [disabled]="store.saving() || !store.dirty()" (click)="save()">
+          Save hours
+        </button>
+      </div>
+    } @else if (!store.loading()) {
+      <p class="failed">
+        Your hours could not be loaded, so they are not shown: an empty week here would read as
+        &ldquo;closed every day&rdquo;, which may not be true.
+      </p>
+      <button matButton (click)="store.load()">Try again</button>
+    }
+  </mat-card-content>
+</mat-card>

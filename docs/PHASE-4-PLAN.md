@@ -86,14 +86,41 @@ this plan existed. Cash on delivery blocks nobody in Lebanon; not being able to 
 opening hours does. Payments moved to their own phase and the comment says so rather than
 misleading the next reader.
 
-### Step 2 — Opening hours
+### Step 2 — Opening hours ✅
 
 The one with a real domain behind it already: several windows a day, and windows that cross
-midnight. `OpeningHours.IsOpenAt` was written in Phase 2 and has been fed only seed data ever
-since.
+midnight. `OpeningHours.IsOpenAt` was written in Phase 2 and had been fed only seed data since.
 
-An editor has to make the overnight case sayable without a manual, and has to refuse a set of
-hours that would silently close the restaurant forever.
+**The week is replaced whole.** What is being edited is a week — whether two windows clash, and
+whether anything is left at all, are questions about the set — so a row-at-a-time endpoint would
+validate the same set anyway while letting a client build an invalid week one request at a time.
+The rows have no identity anybody refers to, so nothing is lost by rewriting them.
+
+**Overlap detection went into the domain, on one weekly timeline.** Every window is laid out in
+minutes from Monday midnight, so a window that runs past midnight is compared against the next
+morning's rather than only against its own day — Monday 18:00–02:00 and Tuesday 01:00–05:00 both
+cover Tuesday at half past one, and a day-by-day check would never see it. Sunday night wraps to
+Monday, which is the case an implementation is most likely to miss and has a test of its own.
+
+**Touching is not overlapping.** Noon to four and four to eight is a normal way to describe a day.
+
+**Overlaps are refused even though nothing downstream breaks.** `IsOpenAt` returns true if any
+window matches, so an overlap changes no behaviour at all — which is exactly why it is worth
+refusing at the point somebody types it. A restaurant that entered 12:00–16:00 and 14:00–20:00
+meant 19:00, and nothing would ever have told them.
+
+**An empty week needs saying so.** No hours means shut to customers indefinitely, which is a real
+thing to want — a kitchen closing for August — and also what a screen looks like halfway through
+an edit. The API distinguishes them with a confirmation flag on the request rather than trusting
+a dialog it cannot see, and the screen shows that dialog.
+
+**The overnight case is said in words.** A close time earlier than an open time is not a mistake,
+it is how "noon until two in the morning" is written — so the moment somebody types it the row
+says "closes 02:00 the next day" rather than leaving them to work it out.
+
+**A flaw the running stack exposed.** With the API on a stale build the editor drew seven rows
+saying "Closed" under an error message — a confident answer to a question it could not answer. The
+week is now drawn only once it has actually arrived, and a test pins it.
 
 ### Step 3 — Delivery zones and fees
 

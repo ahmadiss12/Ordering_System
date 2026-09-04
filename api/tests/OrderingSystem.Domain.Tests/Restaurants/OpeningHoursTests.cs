@@ -97,6 +97,116 @@ public class OpeningHoursTests
         OpeningHours.IsOpenAt([], DayOfWeek.Monday, new TimeOnly(12, 0)).ShouldBeFalse();
     }
 
+    // ------------------------------------------------------------------ overlapping windows
+
+    [Fact]
+    public void Two_sittings_on_one_day_do_not_overlap()
+    {
+        // The mezze house's shape: lunch, a gap, dinner. The commonest legitimate schedule there
+        // is, so it had better not be refused.
+        var hours = new[]
+        {
+            Window(DayOfWeek.Monday, 12, 0, 16, 0),
+            Window(DayOfWeek.Monday, 19, 0, 23, 30),
+        };
+
+        OpeningHours.FindOverlap(hours).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Sittings_that_touch_are_not_an_overlap()
+    {
+        // Noon to four and four to eight is a normal way to describe a day, and the minute at
+        // four o'clock belongs to exactly one of them.
+        var hours = new[]
+        {
+            Window(DayOfWeek.Monday, 12, 0, 16, 0),
+            Window(DayOfWeek.Monday, 16, 0, 20, 0),
+        };
+
+        OpeningHours.FindOverlap(hours).ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_window_swallowing_another_is_an_overlap()
+    {
+        // Somebody meant nineteen hundred. Nothing downstream would ever tell them: IsOpenAt
+        // returns true if any window matches, so the mistake is invisible in behaviour.
+        var hours = new[]
+        {
+            Window(DayOfWeek.Monday, 12, 0, 16, 0),
+            Window(DayOfWeek.Monday, 14, 0, 20, 0),
+        };
+
+        OpeningHours.FindOverlap(hours).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_late_window_clashing_with_the_next_mornings_is_an_overlap()
+    {
+        // The case a day-by-day comparison cannot see. Monday's window runs to two in the
+        // morning; Tuesday's starts at one, and half past one is covered twice.
+        var hours = new[]
+        {
+            Window(DayOfWeek.Monday, 18, 0, 2, 0),
+            Window(DayOfWeek.Tuesday, 1, 0, 5, 0),
+        };
+
+        OpeningHours.FindOverlap(hours).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_late_window_ending_before_the_next_one_starts_is_fine()
+    {
+        var hours = new[]
+        {
+            Window(DayOfWeek.Monday, 18, 0, 2, 0),
+            Window(DayOfWeek.Tuesday, 12, 0, 16, 0),
+        };
+
+        OpeningHours.FindOverlap(hours).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Sunday_night_clashing_with_monday_morning_is_an_overlap()
+    {
+        // The wrap-around again, and the one an implementation is most likely to miss: Sunday's
+        // late window runs past the end of the week and lands back at the start of it.
+        var hours = new[]
+        {
+            Window(DayOfWeek.Sunday, 20, 0, 3, 0),
+            Window(DayOfWeek.Monday, 2, 0, 6, 0),
+        };
+
+        OpeningHours.FindOverlap(hours).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_week_of_identical_days_never_overlaps_itself()
+    {
+        // The seed's own shape, and what an editor produces when somebody copies Monday to every
+        // day. Refusing this would make the commonest action on the screen impossible.
+        var hours = Enum.GetValues<DayOfWeek>().Select(d => Window(d, 10, 0, 23, 0)).ToArray();
+
+        OpeningHours.FindOverlap(hours).ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_week_of_identical_overnight_days_never_overlaps_itself()
+    {
+        // FriesLab's shape, copied across the week: each day runs to two in the morning and the
+        // next opens at noon, so nothing ever meets.
+        var hours = Enum.GetValues<DayOfWeek>().Select(d => Window(d, 12, 0, 2, 0)).ToArray();
+
+        OpeningHours.FindOverlap(hours).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Nothing_at_all_overlaps_nothing()
+    {
+        OpeningHours.FindOverlap([]).ShouldBeNull();
+    }
+
     private static RestaurantHours Window(DayOfWeek day, int openHour, int openMinute, int closeHour, int closeMinute) =>
         new()
         {

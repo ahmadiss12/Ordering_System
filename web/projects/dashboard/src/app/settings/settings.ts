@@ -8,6 +8,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { SessionStore, Roles } from 'auth';
+import { Hours } from './hours';
+import { HoursStore } from './hours-store';
 import { SettingsStore } from './settings-store';
 
 /** Matches the API's validator, so a mistyped figure is refused here with the same numbers. */
@@ -31,8 +33,9 @@ const MAX_MIN_ORDER_USD = 500;
  */
 @Component({
   selector: 'app-settings',
-  providers: [SettingsStore],
+  providers: [SettingsStore, HoursStore],
   imports: [
+    Hours,
     ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,

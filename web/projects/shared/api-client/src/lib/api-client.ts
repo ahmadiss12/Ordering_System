@@ -1504,6 +1504,147 @@ export class RestaurantCategoriesClient implements IRestaurantCategoriesClient {
     }
 }
 
+export interface IRestaurantHoursClient {
+    /**
+     * @return OK
+     */
+    get(): Observable<WeeklyHoursResponse>;
+    /**
+     * @return OK
+     */
+    set(body: SetWeeklyHoursRequest): Observable<WeeklyHoursResponse>;
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class RestaurantHoursClient implements IRestaurantHoursClient {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(): Observable<WeeklyHoursResponse> {
+        let url_ = this.baseUrl + "/api/restaurant/hours";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGet(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGet(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<WeeklyHoursResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<WeeklyHoursResponse>;
+        }));
+    }
+
+    protected processGet(response: HttpResponseBase): Observable<WeeklyHoursResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as WeeklyHoursResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    /**
+     * @return OK
+     */
+    set(body: SetWeeklyHoursRequest): Observable<WeeklyHoursResponse> {
+        let url_ = this.baseUrl + "/api/restaurant/hours";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("put", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processSet(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processSet(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<WeeklyHoursResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<WeeklyHoursResponse>;
+        }));
+    }
+
+    protected processSet(response: HttpResponseBase): Observable<WeeklyHoursResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as WeeklyHoursResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 400) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            }));
+        } else if (status === 403) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Forbidden", status, _responseText, _headers, result403);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
 export interface IRestaurantMenuItemsClient {
     /**
      * @return OK
@@ -3225,7 +3366,7 @@ export interface MenuItemSummary {
 }
 
 export interface OpeningWindow {
-    dayOfWeek: DayOfWeek;
+    day: DayOfWeek;
     openTime: string;
     closeTime: string;
 
@@ -3530,6 +3671,13 @@ export interface SetAvailabilityRequest {
     [key: string]: any;
 }
 
+export interface SetWeeklyHoursRequest {
+    windows: OpeningWindow[];
+    confirmClosedIndefinitely: boolean;
+
+    [key: string]: any;
+}
+
 export interface UpdateCartLineRequest {
     quantity: number;
     note: string | null;
@@ -3580,6 +3728,14 @@ export interface UpdateRestaurantSettingsRequest {
     phone: string;
     defaultPrepMinutes: number;
     minOrderUsd: number;
+
+    [key: string]: any;
+}
+
+export interface WeeklyHoursResponse {
+    windows: OpeningWindow[];
+    isOpenNow: boolean;
+    isClosedIndefinitely: boolean;
 
     [key: string]: any;
 }
