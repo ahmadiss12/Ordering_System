@@ -149,6 +149,14 @@
   }
 }
 
+// Paused is a state a kitchen must be able to see from across the room, because forgetting to
+// switch it back on means a quiet evening nobody can explain.
+.pause.paused {
+  --mat-button-text-label-text-color: var(--mat-sys-error);
+  --mat-button-text-icon-color: var(--mat-sys-error);
+  font-weight: 600;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

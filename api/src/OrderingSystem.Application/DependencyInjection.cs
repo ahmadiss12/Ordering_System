@@ -7,6 +7,7 @@ using OrderingSystem.Application.Features.Cart;
 using OrderingSystem.Application.Features.Catalog;
 using OrderingSystem.Application.Features.Menu;
 using OrderingSystem.Application.Features.Orders;
+using OrderingSystem.Application.Features.Restaurants;
 
 namespace OrderingSystem.Application;
 
@@ -29,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<CheckoutService>();
         services.AddScoped<OrderQueryService>();
         services.AddScoped<OrderTransitionService>();
+        services.AddScoped<RestaurantSettingsService>();
 
         return services;
     }

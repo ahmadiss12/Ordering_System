@@ -251,7 +251,10 @@ public sealed class CheckoutService(
 
             PaymentMethod = request.PaymentMethod,
             // Nothing has been collected yet, whichever method was chosen. Cash is pending until
-            // the courier is handed it, and the online gateway is Phase 4.
+            // the courier is handed it, and the online gateway has its own phase — this comment
+            // said Phase 4 until that phase turned out to be the settings a restaurant needs
+            // before it can operate at all. Cash on delivery blocks nobody in Lebanon; not being
+            // able to set your own opening hours does.
             PaymentStatus = PaymentStatus.Pending,
 
             SubtotalUsd = price.SubtotalUsd,

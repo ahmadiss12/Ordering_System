@@ -5,6 +5,7 @@ import {
   OrderSummaryResponse,
   RejectionReason,
   RestaurantOrdersClient,
+  RestaurantSettingsClient,
   describeError,
 } from 'api-client';
 import { OrderStream } from 'realtime';
@@ -49,6 +50,11 @@ export class QueueStore {
   // machine decides who may make which move. There is no kitchen-only version of it to call.
   private readonly moveClient = inject(MyOrdersClient);
   private readonly stream = inject(OrderStream);
+
+  // Pausing orders is on this screen rather than only in Settings, which is owner-only: the
+  // person who needs it is a cook in the middle of service, and making them navigate away from
+  // the board to find it is the difference between using it and not.
+  private readonly settingsClient = inject(RestaurantSettingsClient);
 
   private readonly ordersSignal = signal<readonly OrderSummaryResponse[]>([]);
   private readonly totalSignal = signal(0);
@@ -101,6 +107,13 @@ export class QueueStore {
 
   readonly isEmpty = computed(() => !this.loading() && this.ordersSignal().length === 0);
 
+  /** Null until the restaurant's settings have loaded, so the switch is not drawn guessing. */
+  private readonly acceptingSignal = signal<boolean | null>(null);
+  readonly accepting = this.acceptingSignal.asReadonly();
+
+  /** Set while the switch is in flight, so it cannot be double-pressed into disagreement. */
+  readonly pausing = signal(false);
+
   constructor() {
     // Reading revision() is what subscribes this effect to it, so the first run both registers
     // the dependency and loads the board. There is deliberately no separate initial load.
@@ -108,6 +121,8 @@ export class QueueStore {
       this.stream.revision();
       void this.refresh();
     });
+
+    void this.loadAcceptingOrders();
 
     const ticker = setInterval(() => this.nowSignal.set(Date.now()), TICK_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(ticker));
@@ -163,6 +178,36 @@ export class QueueStore {
     }
 
     return refusal === null;
+  }
+
+  private async loadAcceptingOrders(): Promise<void> {
+    try {
+      const settings = await firstValueFrom(this.settingsClient.get());
+      this.acceptingSignal.set(settings.isAcceptingOrders);
+    } catch {
+      // Deliberately silent. Not knowing whether the restaurant is paused must not put an error
+      // across a board full of orders that are perfectly readable; the switch simply stays hidden.
+      this.acceptingSignal.set(null);
+    }
+  }
+
+  /**
+   * Pauses or resumes new orders. Separate from opening hours: the hours say when the kitchen
+   * intends to be open, this says whether it can cope right now.
+   */
+  async setAcceptingOrders(accepting: boolean): Promise<void> {
+    this.pausing.set(true);
+
+    try {
+      const settings = await firstValueFrom(
+        this.settingsClient.setAcceptingOrders({ isAcceptingOrders: accepting }),
+      );
+      this.acceptingSignal.set(settings.isAcceptingOrders);
+    } catch (error) {
+      this.error.set(describeError(error, 'Could not change whether you are taking orders.'));
+    } finally {
+      this.pausing.set(false);
+    }
   }
 
   /** Re-reads the queue. Called by the effect above, and by a person pressing refresh. */

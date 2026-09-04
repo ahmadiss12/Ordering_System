@@ -3,6 +3,26 @@
     <h1>Queue</h1>
 
     <div class="status">
+      <!-- Here rather than only in Settings, which is owner-only: the person who reaches for this
+           is a cook mid-service, and the board is the screen they are already looking at. -->
+      @if (store.accepting() !== null) {
+        <button
+          matButton
+          class="pause"
+          [class.paused]="store.accepting() === false"
+          [disabled]="store.pausing()"
+          [matTooltip]="
+            store.accepting()
+              ? 'Stop taking new orders until you switch this back on'
+              : 'Start taking new orders again'
+          "
+          (click)="store.setAcceptingOrders(!store.accepting())"
+        >
+          <mat-icon>{{ store.accepting() ? 'pause_circle' : 'play_circle' }}</mat-icon>
+          {{ store.accepting() ? 'Pause orders' : 'Paused' }}
+        </button>
+      }
+
       <!-- Quiet, and deliberately so. The board refreshes whether or not the socket is up, so
            this is here to answer "can I trust this screen" rather than to be acted on. -->
       <span class="link" [class.down]="!store.live()">

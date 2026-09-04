@@ -9,6 +9,8 @@ import {
   PagedResultOfOrderSummaryResponse,
   RejectionReason,
   RestaurantOrdersClient,
+  RestaurantSettingsClient,
+  RestaurantSettingsResponse,
 } from 'api-client';
 import { LiveStatus, OrderStream } from 'realtime';
 import { Observable, of, throwError } from 'rxjs';
@@ -24,12 +26,14 @@ import { QueueStore } from './queue-store';
 describe('QueueStore', () => {
   let client: FakeOrdersClient;
   let moves: FakeMoveClient;
+  let settings: FakeSettingsClient;
   let stream: FakeStream;
 
   beforeEach(() => {
     vi.useFakeTimers();
     client = new FakeOrdersClient();
     moves = new FakeMoveClient();
+    settings = new FakeSettingsClient();
     stream = new FakeStream();
 
     TestBed.configureTestingModule({
@@ -37,6 +41,7 @@ describe('QueueStore', () => {
         QueueStore,
         { provide: RestaurantOrdersClient, useValue: client },
         { provide: MyOrdersClient, useValue: moves },
+        { provide: RestaurantSettingsClient, useValue: settings },
         { provide: OrderStream, useValue: stream },
       ],
     });
@@ -216,6 +221,37 @@ describe('QueueStore', () => {
     expect(store.moving()).toBeNull();
   });
 
+  // ------------------------------------------------------------------ pausing orders
+
+  it('reads whether the restaurant is taking orders', async () => {
+    const store = await created();
+
+    expect(store.accepting()).toBe(true);
+  });
+
+  it('pauses and resumes without leaving the board', async () => {
+    const store = await created();
+
+    // Owner-only Settings is the wrong place for this: the person reaching for it is a cook in
+    // the middle of service, looking at this screen.
+    await store.setAcceptingOrders(false);
+    expect(settings.lastSet).toBe(false);
+    expect(store.accepting()).toBe(false);
+
+    await store.setAcceptingOrders(true);
+    expect(store.accepting()).toBe(true);
+  });
+
+  it('hides the switch rather than shouting when it cannot be read', async () => {
+    settings.fails();
+    const store = await created();
+
+    // A board full of perfectly readable orders must not carry an error because one extra call
+    // failed. Null means the control is simply not drawn.
+    expect(store.accepting()).toBeNull();
+    expect(store.error()).toBeNull();
+  });
+
   // ------------------------------------------------------------------ the clock
 
   it('turns an order late without anybody touching the server', async () => {
@@ -332,6 +368,33 @@ class FakeMoveClient {
 
     this.sent.push({ orderId, to: body.to, reason: body.reason, note: body.note });
     return of({} as OrderDetailResponse);
+  }
+}
+
+/** Just enough of the settings client for the pause switch. */
+class FakeSettingsClient {
+  lastSet: boolean | undefined;
+
+  private accepting = true;
+  private failing = false;
+
+  fails(): void {
+    this.failing = true;
+  }
+
+  get(): Observable<RestaurantSettingsResponse> {
+    if (this.failing) {
+      return throwError(() => new Error('the API is not answering'));
+    }
+
+    return of({ isAcceptingOrders: this.accepting } as RestaurantSettingsResponse);
+  }
+
+  setAcceptingOrders(body: { isAcceptingOrders: boolean }): Observable<RestaurantSettingsResponse> {
+    this.lastSet = body.isAcceptingOrders;
+    this.accepting = body.isAcceptingOrders;
+
+    return of({ isAcceptingOrders: this.accepting } as RestaurantSettingsResponse);
   }
 }
 
