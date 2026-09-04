@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<OrderTransitionService>();
         services.AddScoped<RestaurantSettingsService>();
         services.AddScoped<OpeningHoursService>();
+        services.AddScoped<RestaurantZonesService>();
 
         return services;
     }

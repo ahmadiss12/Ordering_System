@@ -1,0 +1,100 @@
+<mat-card appearance="outlined">
+  <mat-card-content>
+    <div class="head">
+      <div>
+        <h2>Delivery zones</h2>
+        <p class="muted">
+          The areas are the platform's. You choose which of them you deliver to, and on what terms.
+        </p>
+      </div>
+
+      @if (store.loaded()) {
+        <span class="count">{{ served() }} of {{ store.rows().length }}</span>
+      }
+    </div>
+
+    @if (store.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+
+    @if (store.error(); as message) {
+      <p class="failed">{{ message }}</p>
+    }
+
+    @if (store.loaded()) {
+      <div class="zones">
+        @for (row of store.rows(); track row.zoneId) {
+          <div class="zone" [class.off]="!row.isServed">
+            <mat-slide-toggle
+              [checked]="row.isServed"
+              [disabled]="store.saving() !== null"
+              (change)="onServed(row.zoneId, $event.checked)"
+            />
+
+            <span class="name">{{ row.zoneName }}</span>
+
+            <!-- Kept visible when a zone is switched off rather than hidden: the numbers are
+                 remembered, and seeing them is what tells somebody that turning it back on is
+                 one press rather than a re-entry. -->
+            <label class="field">
+              <span class="label">Fee</span>
+              <span class="input">
+                <span class="prefix">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  [max]="maxFee"
+                  step="0.5"
+                  [value]="row.feeUsd"
+                  [disabled]="store.saving() !== null"
+                  (change)="onNumber(row.zoneId, 'feeUsd', $event)"
+                />
+              </span>
+            </label>
+
+            <label class="field">
+              <span class="label">Travel</span>
+              <span class="input">
+                <input
+                  type="number"
+                  min="1"
+                  [max]="maxMinutes"
+                  [value]="row.minutes"
+                  [disabled]="store.saving() !== null"
+                  (change)="onNumber(row.zoneId, 'minutes', $event)"
+                />
+                <span class="suffix">min</span>
+              </span>
+            </label>
+
+            <span class="actions">
+              @if (isDirty(row)) {
+                <button
+                  matButton
+                  [disabled]="store.saving() !== null"
+                  (click)="store.discard(row.zoneId)"
+                >
+                  Undo
+                </button>
+                <button
+                  matButton="filled"
+                  [disabled]="store.saving() !== null"
+                  (click)="store.save(row.zoneId)"
+                >
+                  Save
+                </button>
+              }
+            </span>
+          </div>
+        }
+      </div>
+
+      <p class="muted note">
+        Travel time is added to your prep time to give a customer their estimate. A zone you stop
+        serving keeps its fee, so switching it back on later is one press.
+      </p>
+    } @else if (!store.loading()) {
+      <button matButton (click)="store.load()">Try again</button>
+    }
+  </mat-card-content>
+</mat-card>

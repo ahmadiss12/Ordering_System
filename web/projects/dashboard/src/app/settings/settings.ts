@@ -11,6 +11,8 @@ import { SessionStore, Roles } from 'auth';
 import { Hours } from './hours';
 import { HoursStore } from './hours-store';
 import { SettingsStore } from './settings-store';
+import { Zones } from './zones';
+import { ZonesStore } from './zones-store';
 
 /** Matches the API's validator, so a mistyped figure is refused here with the same numbers. */
 const MAX_PREP_MINUTES = 120;
@@ -33,9 +35,10 @@ const MAX_MIN_ORDER_USD = 500;
  */
 @Component({
   selector: 'app-settings',
-  providers: [SettingsStore, HoursStore],
+  providers: [SettingsStore, HoursStore, ZonesStore],
   imports: [
     Hours,
+    Zones,
     ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,

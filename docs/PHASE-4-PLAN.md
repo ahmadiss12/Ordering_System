@@ -122,14 +122,36 @@ says "closes 02:00 the next day" rather than leaving them to work it out.
 saying "Closed" under an error message — a confident answer to a question it could not answer. The
 week is now drawn only once it has actually arrived, and a test pins it.
 
-### Step 3 — Delivery zones and fees
+### Step 3 — Delivery zones and fees ✅
 
 Which zones a restaurant serves, the fee for each, and the travel minutes that feed the promised
 time. The zones themselves are platform-owned — a restaurant picks from them rather than inventing
-its own Hamra.
+its own Hamra, which is what makes a customer's saved address and a restaurant's coverage
+comparable at all.
 
-Turning off a zone a customer has a saved address in is the interesting case: their next order is
-refused with "we don't deliver there", which Phase 3 already says properly.
+**A zone at a time, unlike the hours, and for a reason.** Hours are a set with relationships inside
+them — two windows can clash — so they are only meaningful whole. Zones are independent: serving
+Hamra says nothing about Achrafieh and nothing can conflict. So the endpoint takes one zone, and
+each row on the screen saves itself. A row that fails is then a row that failed, rather than one
+unidentified failure somewhere in a grid of ten.
+
+**Every zone is listed, served or not.** A restaurant cannot pick a zone it does not know exists,
+and a list of only the configured ones would make adding the first one impossible to find.
+
+**Switching a zone off keeps its terms.** That is what `RestaurantZone.IsActive` was for, and the
+screen leaves the numbers visible rather than hiding them — seeing them is what says that turning
+the zone back on after a fortnight is one press and not a re-entry. Null fees mean something
+different from zero ones: "we have never set terms for Jounieh" against "we deliver there free".
+
+**A zone never configured starts at something plausible.** Free delivery in no time at all is a
+promise nobody meant to make by pressing one switch.
+
+**Free delivery is allowed on purpose.** Zero is a real offer, and a restaurant wanting to make it
+should not have to charge a cent to satisfy a validator.
+
+**The change followed through to a customer.** Two tests do the thing this step exists for:
+suspending a zone somebody has a saved address in, and watching their next order be refused by
+name; and raising a fee, watching the next quote move, and watching an order already placed not.
 
 ### Step 4 — Staff accounts
 

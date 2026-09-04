@@ -3108,6 +3108,156 @@ export class RestaurantSettingsClient implements IRestaurantSettingsClient {
     }
 }
 
+export interface IRestaurantZonesClient {
+    /**
+     * @return OK
+     */
+    list(): Observable<RestaurantZoneResponse[]>;
+    /**
+     * @return OK
+     */
+    set(zoneId: string, body: SetRestaurantZoneRequest): Observable<RestaurantZoneResponse>;
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class RestaurantZonesClient implements IRestaurantZonesClient {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    list(): Observable<RestaurantZoneResponse[]> {
+        let url_ = this.baseUrl + "/api/restaurant/zones";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processList(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processList(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<RestaurantZoneResponse[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<RestaurantZoneResponse[]>;
+        }));
+    }
+
+    protected processList(response: HttpResponseBase): Observable<RestaurantZoneResponse[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as RestaurantZoneResponse[];
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    /**
+     * @return OK
+     */
+    set(zoneId: string, body: SetRestaurantZoneRequest): Observable<RestaurantZoneResponse> {
+        let url_ = this.baseUrl + "/api/restaurant/zones/{zoneId}";
+        if (zoneId === undefined || zoneId === null)
+            throw new globalThis.Error("The parameter 'zoneId' must be defined.");
+        url_ = url_.replace("{zoneId}", encodeURIComponent("" + zoneId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("put", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processSet(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processSet(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<RestaurantZoneResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<RestaurantZoneResponse>;
+        }));
+    }
+
+    protected processSet(response: HttpResponseBase): Observable<RestaurantZoneResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as RestaurantZoneResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 400) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            }));
+        } else if (status === 403) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Forbidden", status, _responseText, _headers, result403);
+            }));
+        } else if (status === 404) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
 export interface AddCartLineRequest {
     menuItemId: string;
     quantity: number;
@@ -3659,6 +3809,16 @@ export interface RestaurantSummary {
     [key: string]: any;
 }
 
+export interface RestaurantZoneResponse {
+    zoneId: string;
+    zoneName: string;
+    isServed: boolean;
+    deliveryFeeUsd: number | null;
+    estimatedMinutes: number | null;
+
+    [key: string]: any;
+}
+
 export interface SetAcceptingOrdersRequest {
     isAcceptingOrders: boolean;
 
@@ -3667,6 +3827,14 @@ export interface SetAcceptingOrdersRequest {
 
 export interface SetAvailabilityRequest {
     isAvailable: boolean;
+
+    [key: string]: any;
+}
+
+export interface SetRestaurantZoneRequest {
+    isServed: boolean;
+    deliveryFeeUsd: number;
+    estimatedMinutes: number;
 
     [key: string]: any;
 }

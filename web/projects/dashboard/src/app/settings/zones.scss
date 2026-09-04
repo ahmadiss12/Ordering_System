@@ -1,0 +1,113 @@
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+h2 {
+  margin: 0 0 0.25rem;
+  font: var(--mat-sys-title-medium);
+}
+
+.muted {
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.note {
+  margin-top: 1rem;
+}
+
+.count {
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-container-high);
+}
+
+.zones {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+}
+
+.zone {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  &:first-child {
+    border-top: 0;
+  }
+
+  // Dimmed rather than hidden. The numbers are still there, which is the point: a suspended zone
+  // remembers its terms, and seeing them says so without a sentence.
+  &.off .field {
+    opacity: 0.55;
+  }
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 6rem;
+  font: var(--mat-sys-body-large);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.label {
+  font: var(--mat-sys-label-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface);
+}
+
+.prefix,
+.suffix {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+input[type='number'] {
+  width: 3.5rem;
+  border: 0;
+  background: none;
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  font-variant-numeric: tabular-nums;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 0.35rem;
+  // Reserved whether or not a row is dirty, so rows do not jump sideways as somebody types.
+  min-width: 9.5rem;
+  justify-content: flex-end;
+}
+
+.failed {
+  margin: 0.75rem 0 0;
+  color: var(--mat-sys-error);
+}
