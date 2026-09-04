@@ -39,7 +39,9 @@ public static class OpeningHours
             }
 
             // CloseTime == OpenTime is a zero-length window and reads as closed, deliberately.
-            // "Open all day" should be written 00:00-23:59, not left to a coincidence.
+            // A kitchen that never closes is written TimeOnly.MinValue to TimeOnly.MaxValue —
+            // not 00:00-23:59, which is shut for the last sixty seconds of every day and is the
+            // sort of thing that fails one automated run in fourteen hundred and forty.
         }
 
         // A window opened yesterday that has not closed yet. FriesLab's 12:00–02:00 is stored on

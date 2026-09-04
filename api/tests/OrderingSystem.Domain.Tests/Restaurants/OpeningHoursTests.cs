@@ -58,6 +58,40 @@ public class OpeningHoursTests
     }
 
     [Fact]
+    public void A_kitchen_that_never_closes_is_open_at_every_minute_of_the_day()
+    {
+        // MinValue to MaxValue, not 00:00-23:59. The obvious spelling is shut for the last sixty
+        // seconds of every day, which is how an end-to-end suite fails one run in fourteen
+        // hundred and forty and nobody can reproduce it.
+        var hours = new[]
+        {
+            new RestaurantHours
+            {
+                DayOfWeek = DayOfWeek.Monday,
+                OpenTime = TimeOnly.MinValue,
+                CloseTime = TimeOnly.MaxValue,
+            },
+        };
+
+        foreach (var minute in new[] { new TimeOnly(0, 0), new TimeOnly(12, 0), new TimeOnly(23, 59) })
+        {
+            OpeningHours.IsOpenAt(hours, DayOfWeek.Monday, minute)
+                .ShouldBeTrue($"a kitchen that never closes is open at {minute}");
+        }
+    }
+
+    [Fact]
+    public void The_obvious_way_to_write_all_day_leaves_a_minute_shut()
+    {
+        // Not a rule anybody wants, but it is the rule: `localTime < CloseTime` is exclusive.
+        // Asserting it is what stops somebody "tidying" the seed back to 00:00-23:59.
+        var hours = new[] { Window(DayOfWeek.Monday, 0, 0, 23, 59) };
+
+        OpeningHours.IsOpenAt(hours, DayOfWeek.Monday, new TimeOnly(23, 58)).ShouldBeTrue();
+        OpeningHours.IsOpenAt(hours, DayOfWeek.Monday, new TimeOnly(23, 59)).ShouldBeFalse();
+    }
+
+    [Fact]
     public void A_restaurant_with_no_hours_is_closed()
     {
         OpeningHours.IsOpenAt([], DayOfWeek.Monday, new TimeOnly(12, 0)).ShouldBeFalse();

@@ -114,6 +114,7 @@ public sealed class DatabaseSeeder(AppDbContext db, ILogger<DatabaseSeeder> logg
         await AddUserAsync("owner@frieslab.test", "Nadia Owner", RoleType.RestaurantOwner, ct);
         await AddUserAsync("staff@frieslab.test", "Sami Staff", RoleType.RestaurantStaff, ct);
         await AddUserAsync("owner@mezze.test", "Karim Owner", RoleType.RestaurantOwner, ct);
+        await AddUserAsync("owner@shawarma.test", "Layla Owner", RoleType.RestaurantOwner, ct);
 
         var rita = await AddUserAsync("rita@example.test", "Rita Customer", RoleType.Customer, ct);
         await AddUserAsync("joe@example.test", "Joe Customer", RoleType.Customer, ct);
@@ -243,6 +244,16 @@ public sealed class DatabaseSeeder(AppDbContext db, ILogger<DatabaseSeeder> logg
                 continue;
             }
 
+            // The shawarma place never closes. Realistic in Beirut, and deliberately the one
+            // restaurant in the seed that is open at every hour: the end-to-end tests place real
+            // orders against a real server with no clock they can move, so without a subject
+            // like this the whole suite would pass or fail depending on when it happened to run.
+            if (slug == "shawarma-station")
+            {
+                db.RestaurantHours.Add(AllDay(restaurantId, day));
+                continue;
+            }
+
             // FriesLab runs past midnight: a close time earlier than the open time means the
             // window crosses into the next day.
             db.RestaurantHours.Add(slug == "frieslab"
@@ -250,6 +261,19 @@ public sealed class DatabaseSeeder(AppDbContext db, ILogger<DatabaseSeeder> logg
                 : NewHours(restaurantId, day, 10, 0, 23, 0));
         }
     }
+
+    /// <summary>
+    /// A day with no closing time. Written as the widest window a <c>TimeOnly</c> holds rather
+    /// than as 00:00-23:59, which reads as shut for the last sixty seconds of every day.
+    /// </summary>
+    private static RestaurantHours AllDay(Guid restaurantId, DayOfWeek day) => new()
+    {
+        Id = SeedIds.From($"hours:{restaurantId}:{day}:allday"),
+        RestaurantId = restaurantId,
+        DayOfWeek = day,
+        OpenTime = TimeOnly.MinValue,
+        CloseTime = TimeOnly.MaxValue,
+    };
 
     private static RestaurantHours NewHours(
         Guid restaurantId, DayOfWeek day, int openHour, int openMinute, int closeHour, int closeMinute) =>
@@ -370,6 +394,7 @@ public sealed class DatabaseSeeder(AppDbContext db, ILogger<DatabaseSeeder> logg
         await LinkStaffAsync("owner@frieslab.test", "frieslab", StaffRoleType.Owner, ct);
         await LinkStaffAsync("staff@frieslab.test", "frieslab", StaffRoleType.Staff, ct);
         await LinkStaffAsync("owner@mezze.test", "beirut-mezze-house", StaffRoleType.Owner, ct);
+        await LinkStaffAsync("owner@shawarma.test", "shawarma-station", StaffRoleType.Owner, ct);
         await db.SaveChangesAsync(ct);
     }
 

@@ -6,12 +6,18 @@ A multi-restaurant food ordering marketplace for Lebanon. Restaurants handle the
 delivery; the platform takes a commission and settles it in both directions depending on
 whether the customer paid cash or online.
 
-**Status:** Phase 1 complete. Phase 2 in progress — menu API, image upload, Angular workspace,
-and a TypeScript client generated from the API's own OpenAPI document — toolchain, skeleton, solution, the 26
-entities, EF configuration, the initial migration, seed data, authentication, tenant
-isolation and CI, plus the public and staff menu APIs with image upload, a dashboard with a
-working menu editor, and end-to-end tests that drive it in a real browser. The database builds,
-the API starts, and there are three restaurants with real menus in it.
+**Status:** Phases 1, 2 and 3 complete.
+
+Phase 1 built the foundations: the solution, the 26 entities, EF configuration, the first
+migration, seed data, authentication, tenant isolation and CI. Phase 2 made a menu editable — the
+public and staff menu APIs, image upload, the Angular workspace, a TypeScript client generated
+from the API's own OpenAPI document, and a dashboard with a working menu editor.
+
+Phase 3 made it sell food. A customer builds a basket and places an order the server prices; a
+kitchen sees it arrive without pressing anything, works it from a tablet with one press per step,
+and can refuse it with a reason that reaches a report. Every status change is recorded with the
+account that made it, and the transitions an order may make live in one table that a truth test
+walks in full.
 
 ## Documentation
 
@@ -19,6 +25,8 @@ the API starts, and there are three restaurants with real menus in it.
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 19 architecture decisions, each with the alternatives and why they lost |
 | [`docs/DOMAIN-MODEL.md`](docs/DOMAIN-MODEL.md) | The 24 entities as class diagrams, and why one multi-tenant platform rather than a copy per restaurant |
+| [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md) | The menu phase, and the decisions taken inside each step |
+| [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) | The orders phase — state machine, pricing, checkout, live updates, the kitchen screens — and what each step found |
 
 ## Stack
 
@@ -26,7 +34,7 @@ the API starts, and there are three restaurants with real menus in it.
 |---|---|
 | API | ASP.NET Core on .NET 10 (LTS), Clean Architecture |
 | Database | SQL Server, EF Core code-first |
-| Web | Angular — customer storefront and staff/admin dashboard (Phase 2) |
+| Web | Angular — staff dashboard (Phases 2–3); customer storefront (Phase 5) |
 | Mobile | React Native / Expo (Phase 5) |
 | Real-time | SignalR |
 

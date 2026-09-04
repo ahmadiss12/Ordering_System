@@ -76,8 +76,14 @@ export PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium
 CI leaves that unset and installs its own, so the pipeline is not tied to any one machine.
 
 A note on the data: these tests share one database and clean up after themselves, except for
-option groups, which have no delete endpoint. CI starts from an empty database every run, so
-this only shows up locally as a few leftover `E2E Group …` rows.
+option groups, which have no delete endpoint, and the orders they place, which have none either —
+an order is a record, not a resource to tidy away. CI starts from an empty database every run, so
+locally this shows up as a few leftover `E2E Group …` rows and a growing order history.
+
+The order tests use **Shawarma Station**, the one seeded restaurant with no closing time. The
+checkout refuses an order to a shut kitchen, and a browser test has no clock it can move — every
+other seeded restaurant is closed for between ten and seventeen hours a day, which would make the
+suite pass or fail depending on when it ran.
 
 ## Regenerating the API client
 

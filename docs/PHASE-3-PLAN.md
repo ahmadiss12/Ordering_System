@@ -418,11 +418,75 @@ paging, and filtering by day is a reporting concern that belongs with the rest o
 the dev server was still recompiling files that had just been formatted. It passed on both re-runs
 and in a clean run afterwards. Worth naming rather than quietly re-running.
 
-### Step 9 — E2E and phase close
+### Step 9 — E2E and phase close ✅
 
 Place an order through the API, watch it appear in the kitchen queue, accept it, walk it to
 delivered, and assert the event trail records each step with the account that made it. Plus the
-refusals — a below-minimum order and a closed restaurant.
+refusals.
+
+**A restaurant that never closes, added to the seed.** The checkout refuses an order to a shut
+kitchen — correctly — and a browser test has no clock it can move, which is what made the
+integration suite's `TestClock` necessary in step 5a. Every seeded restaurant closed for between
+ten and seventeen hours a day, so every order test here would have passed or failed depending on
+the hour CI happened to run. Shawarma Station is now open around the clock, which is realistic in
+Beirut and gives the whole suite a dependable subject. FriesLab keeps its noon-to-two window
+precisely because two integration tests turn on it.
+
+**"Open all day" is not 00:00–23:59.** The domain said it was; it is shut for the last sixty
+seconds of every day, because the comparison against the closing time is exclusive. That is a
+failure once in every fourteen hundred and forty runs, at an hour nobody is awake to reproduce.
+The seed writes the widest window a `TimeOnly` holds, and two domain tests now pin both facts —
+including the sixty-second hole, so nobody tidies the seed back to the obvious spelling.
+
+**What the end-to-end suite proves that nothing else can.** An order placed by a customer's app
+appears on a kitchen screen nobody touched; four presses walk it to delivered; the trail afterwards
+names the account behind every step. Deleting the board's subscription to the live stream fails
+that first test, and making the reason dialog ignore what was chosen fails the refusal test — so
+neither is passing by coincidence.
+
+**A refusal the test could not reach at first.** "A dish sold out while the basket sat" was written
+as add-then-refuse and got "your basket is empty" instead: adding an item that is *already* off is
+refused at the basket. The refusal only exists in the gap between deciding and paying, so the
+helper now stocks a basket and checks out as two steps, and the test closes the shop in between.
+
+**The closed-restaurant refusal is deliberately not here.** It is real, and it is tested — in the
+integration suite, on a clock that can be moved. Recreating it in a browser would mean either
+waiting for a particular hour or asserting nothing for most of the day. Naming that is better than
+a test that quietly passes because it never ran the assertion.
+
+---
+
+## 7. Phase 3, closed
+
+An order can now be placed, priced, refused for six specific reasons, accepted, cooked, handed
+over, and read back afterwards with its whole history — and a kitchen can do all of it from a
+tablet without pressing refresh.
+
+**What this phase actually changed about the product.** Phase 2 could describe food. This one can
+sell it.
+
+**The rules live in one place each, and the tests are what keep them there.** Which moves are legal
+is the transition table, enumerated by a truth table over all 256 combinations. What an order cost
+is `OrderPricing`, on the server, with the client's figure used only to check agreement. Who may
+see an order is the query filter; who may move it is the state machine. Every screen that draws a
+button asks the API which buttons exist.
+
+**Bugs this phase found in itself,** which is the part worth keeping: two tablets accepting the
+same order; a validator that allowed 1000 characters into a 500-character column; SignalR pushing
+the same order twice to somebody who was both staff and customer; a generated client whose types
+claimed `undefined` where the wire sends `null`; every enum reaching TypeScript as a bare number;
+an icon that rendered as nothing; a refusal message wiped out by the reload that followed it. All
+found by a test or by looking at the running screen, none by a user.
+
+**What is deliberately not built.** No stock levels — `IsAvailable` is the switch a kitchen
+actually uses. No payment gateway — cash on delivery is the Lebanese default and the interface is
+what makes a processor a swap. No date filtering on the history, and no way for a restaurant to set
+its own opening hours through the product: both are settings and reporting, which is phase 4.
+
+**One limitation named and left alone.** The query filter gives staff their restaurant's orders
+*instead of* their own, so a restaurant owner who orders from a different restaurant cannot see
+that order. It is the security boundary ADR-07 is built on, and widening it deserves its own
+review rather than a change made in passing.
 
 ---
 
