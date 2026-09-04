@@ -25,6 +25,7 @@ walks in full.
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 19 architecture decisions, each with the alternatives and why they lost |
 | [`docs/DOMAIN-MODEL.md`](docs/DOMAIN-MODEL.md) | The 24 entities as class diagrams, and why one multi-tenant platform rather than a copy per restaurant |
+| [`docs/PROJECT-STRUCTURE.md`](docs/PROJECT-STRUCTURE.md) | What lives in each folder today, what lands there later, and where a new file belongs |
 | [`docs/PHASE-2-PLAN.md`](docs/PHASE-2-PLAN.md) | The menu phase, and the decisions taken inside each step |
 | [`docs/PHASE-3-PLAN.md`](docs/PHASE-3-PLAN.md) | The orders phase — state machine, pricing, checkout, live updates, the kitchen screens — and what each step found |
 
