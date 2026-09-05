@@ -192,11 +192,40 @@ is attempted, so an exception told an owner nothing had happened while somebody 
 granted the order book. The send is best-effort and the response says whether it worked, keeping
 "emailed", "nothing to send" and "should have been sent and was not" apart.
 
-### Step 5 — The platform admin
+### Step 5 — The platform admin ✅
 
 The other side of the two-level split: every restaurant, active or not, with commission and the
 active switch. Small, and deliberately separate from everything above — an owner must never reach
 these fields, and a screen that draws them for the wrong role is how that happens.
+
+**The guard needed a new method.** Every other write path uses `EnsureCanActFor`, which admits a
+restaurant acting on itself. That is right for a menu and wrong for a commission rate: an owner
+posting their own restaurant's id would have passed it. `RequirePlatformAdmin` is what these three
+endpoints call.
+
+**The second layer was nearly decorative.** Swapping that guard back to `EnsureCanActFor` broke
+nothing and failed nothing, because the controller's policy refuses an owner before the service is
+entered — so no test through HTTP could ever say whether the service checked anything. Two tests
+now construct the service directly with a staff tenant. This is the same shape as the last-owner
+rule in Step 4: when one guard sits in front of another, only the outer one is under test unless
+something deliberately goes round it.
+
+**Neither field reaches backwards.** A rate applies to the next order and no earlier one, and both
+halves of that are followed through to real orders — the placed one keeps its rate, the next one
+gets the new one. A rate change that reached back through history would look exactly like a bug
+and would only be noticed at the end of the month.
+
+**Hiding a restaurant does not stop its kitchen.** Customers cannot find, quote or order from it;
+orders already placed are untouched and its staff keep working them. People waiting for food they
+have paid for should get it whatever the platform has decided about the listing.
+
+**The screen says what each press does before it happens**, including what it does *not* do, and
+shows the live order count next to the switch — hiding a restaurant with nine orders cooking is a
+different act from hiding one with none, and nothing else on the page would have said so.
+
+**Not built, and worth naming:** nothing records who changed a rate or when. For a field that
+decides what a restaurant is paid, an audit trail is the obvious next thing, and it needs a table
+rather than a corner of this step.
 
 ### Step 6 — Reporting
 
