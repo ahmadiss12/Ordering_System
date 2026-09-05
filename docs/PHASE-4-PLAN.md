@@ -227,13 +227,51 @@ different act from hiding one with none, and nothing else on the page would have
 decides what a restaurant is paid, an audit trail is the obvious next thing, and it needs a table
 rather than a corner of this step.
 
-### Step 6 — Reporting
+### Step 6 — Reporting ✅
 
 What the rejection reasons were collected for. Orders by day, revenue and commission, and a
 rejection rate per restaurant with the reasons broken out.
 
 Date filtering on the order history lands here too — Phase 3 left it out on purpose, saying it
-belonged with the rest of the reporting rather than bolted onto a queue endpoint.
+belonged with the rest of the reporting rather than bolted onto a queue endpoint. It was right to
+wait: the filter and the report have to agree about which day an order belongs to, and settling
+that question is most of this step.
+
+**Orders now carry the day the kitchen worked.** Checkout already computed it to build the order
+number and then threw it away, so a report grouped on `PlacedAt` — which is UTC — would have filed
+part of every Beirut evening under the previous day, and differently in winter and summer. Storing
+it means the day a report puts an order under is the day printed in the order number the customer
+quotes. A check constraint rejects an order without one: EF sends every mapped column on insert,
+so `DateOnly`'s own 0001-01-01 would arrive as a value and a column default would never fire — the
+order would vanish from every report rather than fail.
+
+**Revenue is what was kept.** Refused and withdrawn orders are not sales; both are counted
+separately so the figures reconcile. Orders still cooking count, because a report that waited for
+delivery would read as empty right through service, which is when somebody looks at it. The
+average divides by the orders that produced the revenue, not by every order placed.
+
+**A cancellation is in the denominator of the rejection rate and out of its numerator.** A
+customer changing their mind is not the restaurant refusing them.
+
+**Commission comes from each order's own snapshot**, so last month does not move when a rate is
+renegotiated. **Every day in the range is returned**, empty ones included — a missing day draws as
+a gap, and a gap reads as missing data rather than as a quiet Tuesday.
+
+**Calendar dates reach TypeScript as strings.** NSwag renders `format: date` as a JavaScript
+`Date`, which is an instant: sending one calls `toISOString()`, so an owner in Beirut picking the
+5th posts the 4th at 21:00Z, and reading one parses `"2026-09-05"` as midnight UTC. Both put back
+the exact bug the business date exists to prevent, at the client boundary. A schema transformer
+describes `DateOnly` as a plain string, because NSwag's own `dateType` setting is ignored by this
+version.
+
+**Two plots, one day axis** — never two y-scales on one. Orders and revenue are measures of
+different size, and a shared axis would invent whatever relationship the scales implied. The four
+headline figures are stat tiles rather than charts.
+
+**Three defects only rendering it found**, none of which a test would have caught: an axis step
+list coarse enough to send a 27-order day to an axis of 50, a pinned SVG height that stretched
+both charts 1.6x horizontally, and a day-label row that lined up with the plot at exactly one
+window width.
 
 ### Step 7 — E2E and phase close
 
