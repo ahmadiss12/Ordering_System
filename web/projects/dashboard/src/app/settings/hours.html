@@ -36,27 +36,41 @@
             <div class="windows">
               @for (window of day.windows; track $index) {
                 <div class="window">
-                  <input
-                    type="time"
-                    [value]="window.open"
-                    (change)="onTime(day.day, $index, 'open', $event)"
-                    aria-label="Opens"
-                  />
-                  <span class="dash">&ndash;</span>
-                  <input
-                    type="time"
-                    [value]="window.close"
-                    (change)="onTime(day.day, $index, 'close', $event)"
-                    aria-label="Closes"
-                  />
-
-                  <!-- The case people get wrong. A close time earlier than an open time is how an
-                       overnight kitchen is written, so the screen says what it means outright. -->
-                  @if (overnightNote(window); as note) {
-                    <span class="overnight">
-                      <mat-icon>bedtime</mat-icon>
-                      {{ note }}
+                  @if (window.allDay) {
+                    <!-- Not two time boxes reading 00:00 and 23:59. That is a different day: it
+                         shuts the kitchen for the last minute of it, and the closing time this
+                         actually stands for is not one an input can hold. -->
+                    <span class="all-day">
+                      <mat-icon>schedule</mat-icon>
+                      Open all day
                     </span>
+                    <button matButton (click)="store.setTimed(day.day, $index)">
+                      Set times instead
+                    </button>
+                  } @else {
+                    <input
+                      type="time"
+                      [value]="window.open"
+                      (change)="onTime(day.day, $index, 'open', $event)"
+                      aria-label="Opens"
+                    />
+                    <span class="dash">&ndash;</span>
+                    <input
+                      type="time"
+                      [value]="window.close"
+                      (change)="onTime(day.day, $index, 'close', $event)"
+                      aria-label="Closes"
+                    />
+
+                    <!-- The case people get wrong. A close time earlier than an open time is how
+                         an overnight kitchen is written, so the screen says what it means
+                         outright. -->
+                    @if (overnightNote(window); as note) {
+                      <span class="overnight">
+                        <mat-icon>bedtime</mat-icon>
+                        {{ note }}
+                      </span>
+                    }
                   }
 
                   <button
@@ -72,10 +86,18 @@
               }
             </div>
 
-            <button matButton (click)="store.addWindow(day.day)">
-              <mat-icon>add</mat-icon>
-              Add hours
-            </button>
+            <!-- Neither applies to a day that is already all day: there is no hour left to add
+                 that would not overlap it, and the API refuses a week whose windows clash — so
+                 the refusal would arrive on save with nothing on screen to explain it. -->
+            @if (!isAllDay(day)) {
+              <div class="day-actions">
+                <button matButton (click)="store.addWindow(day.day)">
+                  <mat-icon>add</mat-icon>
+                  Add hours
+                </button>
+                <button matButton (click)="store.setAllDay(day.day)">All day</button>
+              </div>
+            }
           </div>
         }
       </div>

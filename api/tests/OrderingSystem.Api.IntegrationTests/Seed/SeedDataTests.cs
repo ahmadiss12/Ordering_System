@@ -69,11 +69,12 @@ public sealed class SeedDataTests(SeededDatabase seeded) : IClassFixture<SeededD
     }
 
     [Fact]
-    public async Task Every_restaurant_has_a_menu_and_a_delivery_area()
+    public async Task Every_listed_restaurant_has_a_menu_and_a_delivery_area()
     {
         await using var db = seeded.Context();
 
         var restaurants = await db.Restaurants
+            .Where(r => r.IsActive)
             .Select(r => new
             {
                 r.Name,
@@ -87,6 +88,36 @@ public sealed class SeedDataTests(SeededDatabase seeded) : IClassFixture<SeededD
         restaurants.ShouldAllBe(r => r.Items > 0);
         restaurants.ShouldAllBe(r => r.Zones > 0);
         restaurants.ShouldAllBe(r => r.Hours > 0);
+    }
+
+    [Fact]
+    public async Task One_restaurant_is_seeded_with_nothing_set_up()
+    {
+        await using var db = seeded.Context();
+
+        var fresh = await db.Restaurants
+            .Where(r => r.Slug == DatabaseSeeder.UnconfiguredSlug)
+            .Select(r => new
+            {
+                r.IsActive,
+                Items = r.MenuItems.Count,
+                Zones = r.Zones.Count,
+                Hours = r.Hours.Count,
+                Owners = r.Staff.Count,
+            })
+            .FirstOrDefaultAsync(Ct);
+
+        // Deliberately empty, and the onboarding journey depends on it staying that way: it signs
+        // in as this owner and takes the restaurant from here to taking orders. A well-meaning
+        // addition of hours or a menu here would leave that test proving nothing.
+        fresh.ShouldNotBeNull();
+        fresh.IsActive.ShouldBeFalse("nobody has listed it yet");
+        fresh.Items.ShouldBe(0);
+        fresh.Zones.ShouldBe(0);
+        fresh.Hours.ShouldBe(0);
+
+        // With an owner, though. Somebody has to be able to sign in and do the setting up.
+        fresh.Owners.ShouldBe(1);
     }
 
     [Fact]

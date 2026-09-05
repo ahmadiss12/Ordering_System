@@ -36,13 +36,73 @@ describe('HoursStore', () => {
     ]);
   });
 
+  it('does not quietly close an around-the-clock kitchen on the way through the form', async () => {
+    client.returns([window(DayOfWeek.Monday, '00:00:00', '23:59:59.9999999')]);
+    const store = await loaded();
+
+    // The bug this pins, which was live: the form truncated to "HH:mm", so a day with no closing
+    // time came back as 00:00 to 23:59 and went out that way again. Opening the hours screen and
+    // pressing Save without touching anything shut the kitchen for the last minute of the day —
+    // silently, and for a restaurant whose whole point was that it never closed.
+    expect(store.draft()[0].windows[0].allDay).toBe(true);
+
+    await store.save();
+
+    expect(client.lastSent).toEqual([
+      { day: DayOfWeek.Monday, openTime: '00:00:00', closeTime: '23:59:59.9999999' },
+    ]);
+  });
+
+  it('sends the last tick of the day when somebody asks for all day', async () => {
+    client.returns([window(DayOfWeek.Monday, '09:00:00', '17:00:00')]);
+    const store = await loaded();
+
+    store.setAllDay(DayOfWeek.Monday);
+    await store.save();
+
+    // 23:59 would be a different promise. This is the only value that means "does not close",
+    // and no input type=time can hold it — which is why the screen offers a word instead.
+    expect(client.lastSent).toEqual([
+      { day: DayOfWeek.Monday, openTime: '00:00:00', closeTime: '23:59:59.9999999' },
+    ]);
+  });
+
+  it('replaces the whole day when all day is chosen, rather than adding to it', async () => {
+    client.returns([
+      window(DayOfWeek.Monday, '09:00:00', '12:00:00'),
+      window(DayOfWeek.Monday, '18:00:00', '22:00:00'),
+    ]);
+    const store = await loaded();
+
+    store.setAllDay(DayOfWeek.Monday);
+
+    // A lunch window left beside an all-day one would overlap it, and the API refuses a week
+    // whose windows clash — so the refusal would arrive on save with nothing on screen to
+    // explain it.
+    expect(store.draft()[0].windows.length).toBe(1);
+  });
+
+  it('lets an all-day window be turned back into times', async () => {
+    client.returns([window(DayOfWeek.Monday, '00:00:00', '23:59:59.9999999')]);
+    const store = await loaded();
+
+    store.setTimed(DayOfWeek.Monday, 0);
+
+    // Otherwise the only way out of "all day" is to delete the row and start again, which loses
+    // the day rather than editing it.
+    const changed = store.draft()[0].windows[0];
+    expect(changed.allDay).toBe(false);
+    expect(changed.open).not.toBe('');
+    expect(changed.close).not.toBe('');
+  });
+
   it('drops the seconds the API sends and puts them back on the way out', async () => {
     client.returns([window(DayOfWeek.Monday, '09:00:00', '17:00:00')]);
     const store = await loaded();
 
     // An input type=time speaks "09:00"; the API speaks "09:00:00". Seconds are never part of an
     // opening time, and showing them would invite somebody to edit them.
-    expect(store.draft()[0].windows).toEqual([{ open: '09:00', close: '17:00' }]);
+    expect(store.draft()[0].windows).toEqual([{ open: '09:00', close: '17:00', allDay: false }]);
 
     await store.save();
     expect(client.lastSent).toEqual([
@@ -91,7 +151,7 @@ describe('HoursStore', () => {
     store.discard();
 
     expect(store.dirty()).toBe(false);
-    expect(store.draft()[0].windows).toEqual([{ open: '09:00', close: '17:00' }]);
+    expect(store.draft()[0].windows).toEqual([{ open: '09:00', close: '17:00', allDay: false }]);
     expect(store.draft()[4].windows).toEqual([]);
   });
 
@@ -144,12 +204,12 @@ describe('HoursStore', () => {
   });
 
   it('recognises a window that runs past midnight', () => {
-    expect(isOvernight({ open: '12:00', close: '02:00' })).toBe(true);
-    expect(isOvernight({ open: '09:00', close: '17:00' })).toBe(false);
+    expect(isOvernight({ open: '12:00', close: '02:00', allDay: false })).toBe(true);
+    expect(isOvernight({ open: '09:00', close: '17:00', allDay: false })).toBe(false);
 
     // Half-typed is not overnight. Saying "closes 00:00 the next day" under an empty box would be
     // a confident answer to a question nobody asked.
-    expect(isOvernight({ open: '12:00', close: '' })).toBe(false);
+    expect(isOvernight({ open: '12:00', close: '', allDay: false })).toBe(false);
   });
 
   async function loaded(): Promise<HoursStore> {

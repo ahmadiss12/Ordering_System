@@ -17,7 +17,28 @@ export const WEEK: readonly { day: DayOfWeek; label: string }[] = [
 export interface DraftWindow {
   open: string;
   close: string;
+  /**
+   * A kitchen that never shuts on this day.
+   *
+   * <p>
+   * Carried as a flag rather than as a pair of times, because the closing time it stands for —
+   * the last tick before midnight — is not a value an `input type="time"` can hold. It rounds to
+   * 23:59, and 23:59 is a real closing time that shuts the kitchen for the last minute of every
+   * day. Before this existed, opening the hours screen and pressing Save without touching
+   * anything did exactly that to a restaurant that had been open around the clock.
+   * </p>
+   */
+  allDay: boolean;
 }
+
+/**
+ * What the API calls "all day": midnight to the last tick before the next one.
+ *
+ * `TimeOnly.MaxValue`, which is how the domain writes a day with no closing time — a window of
+ * 00:00 to 23:59 would be shut for sixty seconds a night.
+ */
+const OPEN_TIME_ALL_DAY = '00:00:00';
+const CLOSE_TIME_ALL_DAY = '23:59:59.9999999';
 
 export interface DraftDay {
   readonly day: DayOfWeek;
@@ -145,6 +166,37 @@ export class HoursStore {
   }
 
   /**
+   * Makes a day one window with no closing time, replacing whatever was there.
+   *
+   * The screen's only way to express a kitchen that runs around the clock — an `input type="time"`
+   * cannot hold the last tick before midnight, and 23:59 is a different thing: it shuts the
+   * kitchen for the last minute of the day.
+   */
+  setAllDay(day: DayOfWeek): void {
+    this.draftSignal.update((week) =>
+      week.map((d) =>
+        d.day === day ? { ...d, windows: [{ open: '00:00', close: '00:00', allDay: true }] } : d,
+      ),
+    );
+  }
+
+  /** Turns an all-day window back into ordinary times, so it can be edited rather than only replaced. */
+  setTimed(day: DayOfWeek, index: number): void {
+    this.draftSignal.update((week) =>
+      week.map((d) =>
+        d.day === day
+          ? {
+              ...d,
+              windows: d.windows.map((w, i) =>
+                i === index ? { open: '09:00', close: '22:00', allDay: false } : w,
+              ),
+            }
+          : d,
+      ),
+    );
+  }
+
+  /**
    * Gives every day the first day's windows.
    *
    * Most restaurants keep the same hours all week, so this is the difference between filling in
@@ -181,10 +233,16 @@ function fromApi(windows: readonly OpeningWindow[]): DraftDay[] {
   return WEEK.map((d) => ({
     day: d.day,
     label: d.label,
-    windows: windows
-      .filter((w) => w.day === d.day)
-      .map((w) => ({ open: hhmm(w.openTime), close: hhmm(w.closeTime) })),
+    windows: windows.filter((w) => w.day === d.day).map(fromApiWindow),
   }));
+}
+
+function fromApiWindow(window: OpeningWindow): DraftWindow {
+  const allDay = window.openTime === OPEN_TIME_ALL_DAY && window.closeTime === CLOSE_TIME_ALL_DAY;
+
+  return allDay
+    ? { open: '00:00', close: '00:00', allDay: true }
+    : { open: hhmm(window.openTime), close: hhmm(window.closeTime), allDay: false };
 }
 
 function toApi(week: readonly DraftDay[]): OpeningWindow[] {
@@ -192,8 +250,12 @@ function toApi(week: readonly DraftDay[]): OpeningWindow[] {
     d.windows
       // A half-typed row is not a window. Sending it would earn a validation error for a row the
       // person has not finished rather than for anything they did wrong.
-      .filter((w) => w.open && w.close)
-      .map((w) => ({ day: d.day, openTime: `${w.open}:00`, closeTime: `${w.close}:00` })),
+      .filter((w) => w.allDay || (w.open && w.close))
+      .map((w) =>
+        w.allDay
+          ? { day: d.day, openTime: OPEN_TIME_ALL_DAY, closeTime: CLOSE_TIME_ALL_DAY }
+          : { day: d.day, openTime: `${w.open}:00`, closeTime: `${w.close}:00` },
+      ),
   );
 }
 
@@ -205,7 +267,10 @@ function hhmm(time: string): string {
 /** Where a new window starts: after the last one, or at noon on an empty day. */
 function nextWindow(existing: readonly DraftWindow[]): DraftWindow {
   const last = existing[existing.length - 1];
-  return last?.close ? { open: last.close, close: '' } : { open: '12:00', close: '' };
+
+  return last?.close && !last.allDay
+    ? { open: last.close, close: '', allDay: false }
+    : { open: '12:00', close: '', allDay: false };
 }
 
 function serialise(week: readonly DraftDay[]): string {

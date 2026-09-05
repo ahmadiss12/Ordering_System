@@ -126,3 +126,24 @@ input[type='time'] {
   margin: 0.75rem 0 0;
   color: var(--mat-sys-error);
 }
+
+// A day with no closing time reads as a phrase, not as two time boxes: the closing time it
+// stands for cannot be typed into one, and the nearest that can — 23:59 — means something else.
+.all-day {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 1.1rem;
+  }
+}
+
+.day-actions {
+  display: flex;
+  gap: 0.25rem;
+}

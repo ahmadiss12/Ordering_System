@@ -8,7 +8,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { DayOfWeek } from 'api-client';
 import { firstValueFrom } from 'rxjs';
 import { ConfirmData, ConfirmDialog } from '../common/confirm-dialog';
-import { DraftWindow, HoursStore, isOvernight } from './hours-store';
+import { DraftDay, DraftWindow, HoursStore, isOvernight } from './hours-store';
 
 /**
  * When the restaurant is open.
@@ -54,6 +54,11 @@ export class Hours {
   }
 
   /** "closes at 02:00 the next day", so nobody has to work out what the earlier time means. */
+  /** Whether this day is already a single around-the-clock window. */
+  protected isAllDay(day: DraftDay): boolean {
+    return day.windows.some((w) => w.allDay);
+  }
+
   protected overnightNote(window: DraftWindow): string | null {
     return isOvernight(window) ? `closes ${window.close} the next day` : null;
   }

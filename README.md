@@ -116,7 +116,7 @@ Api             → Application, Infrastructure   controllers, auth, SignalR, DI
 
 ## Seed accounts
 
-`dotnet run --project src/OrderingSystem.Api -- --seed` fills an empty database with three
+`dotnet run --project src/OrderingSystem.Api -- --seed` fills an empty database with four
 restaurants, 24 menu items, 10 Beirut delivery zones and these accounts. Password for all:
 `Passw0rd!` — development data only.
 
@@ -126,8 +126,16 @@ restaurants, 24 menu items, 10 Beirut delivery zones and these accounts. Passwor
 | `owner@frieslab.test` | Owner, FriesLab |
 | `staff@frieslab.test` | Staff, FriesLab |
 | `owner@mezze.test` | Owner, Beirut Mezze House |
+| `owner@shawarma.test` | Owner, Shawarma Station — open around the clock |
+| `owner@sajcorner.test` | Owner, Saj Corner — nothing set up yet, see below |
 | `rita@example.test` | Customer, two saved addresses |
 | `joe@example.test` | Customer |
+
+Three of those restaurants are fully configured and listed. **Saj Corner deliberately is not**: no
+hours, no delivery zones, no menu, and hidden from customers — the state a restaurant is in
+between the platform creating it and its owner setting it up. Signing in as its owner is the
+quickest way to see what a real onboarding looks like, and the `onboarding` end-to-end test walks
+that path from there to a cooked order.
 
 Safe to run repeatedly: every insert is guarded, and ids are derived from names rather than
 random, so re-seeding does not move anything.

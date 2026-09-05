@@ -115,6 +115,7 @@ public sealed class DatabaseSeeder(AppDbContext db, ILogger<DatabaseSeeder> logg
         await AddUserAsync("staff@frieslab.test", "Sami Staff", RoleType.RestaurantStaff, ct);
         await AddUserAsync("owner@mezze.test", "Karim Owner", RoleType.RestaurantOwner, ct);
         await AddUserAsync("owner@shawarma.test", "Layla Owner", RoleType.RestaurantOwner, ct);
+        await AddUserAsync("owner@sajcorner.test", "Rami Owner", RoleType.RestaurantOwner, ct);
 
         var rita = await AddUserAsync("rita@example.test", "Rita Customer", RoleType.Customer, ct);
         await AddUserAsync("joe@example.test", "Joe Customer", RoleType.Customer, ct);
@@ -228,7 +229,53 @@ public sealed class DatabaseSeeder(AppDbContext db, ILogger<DatabaseSeeder> logg
             await db.SaveChangesAsync(ct);
         }
 
+        await AddUnconfiguredRestaurantAsync(ct);
         await AddStaffAsync(ct);
+    }
+
+    /// <summary>The slug of the restaurant that has been created and set up by nobody.</summary>
+    public const string UnconfiguredSlug = "saj-corner";
+
+    /// <summary>
+    /// A restaurant the platform has created and whose owner has done nothing with yet.
+    ///
+    /// <para>
+    /// No hours, no delivery zones, no menu, and not listed — the state every restaurant is in
+    /// for the few minutes between the platform creating it and its owner setting it up. It is
+    /// here so that state can be exercised rather than imagined: the onboarding journey signs in
+    /// as this owner and takes it all the way to taking orders, which is the one thing a demo of
+    /// three fully-configured restaurants cannot show.
+    /// </para>
+    /// <para>
+    /// Hidden, so it stays out of the public catalog and out of the way of every other test until
+    /// the journey lists it.
+    /// </para>
+    /// </summary>
+    private async Task AddUnconfiguredRestaurantAsync(CancellationToken ct)
+    {
+        var restaurantId = SeedIds.From($"restaurant:{UnconfiguredSlug}");
+
+        if (await db.Restaurants.AnyAsync(r => r.Id == restaurantId, ct))
+        {
+            return;
+        }
+
+        db.Restaurants.Add(new Restaurant
+        {
+            Id = restaurantId,
+            Name = "Saj Corner",
+            Slug = UnconfiguredSlug,
+            Description = null,
+            Phone = "+9611234570",
+            IsActive = false,
+            IsAcceptingOrders = true,
+            CommissionPercent = 15m,
+            MinOrderUsd = 0m,
+            DefaultPrepMinutes = 20,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        await db.SaveChangesAsync(ct);
     }
 
     private void AddHours(Guid restaurantId, string slug)
@@ -395,6 +442,7 @@ public sealed class DatabaseSeeder(AppDbContext db, ILogger<DatabaseSeeder> logg
         await LinkStaffAsync("staff@frieslab.test", "frieslab", StaffRoleType.Staff, ct);
         await LinkStaffAsync("owner@mezze.test", "beirut-mezze-house", StaffRoleType.Owner, ct);
         await LinkStaffAsync("owner@shawarma.test", "shawarma-station", StaffRoleType.Owner, ct);
+        await LinkStaffAsync("owner@sajcorner.test", UnconfiguredSlug, StaffRoleType.Owner, ct);
         await db.SaveChangesAsync(ct);
     }
 
