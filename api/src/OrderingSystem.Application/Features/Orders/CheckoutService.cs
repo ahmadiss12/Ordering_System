@@ -235,6 +235,7 @@ public sealed class CheckoutService(
         {
             Id = Guid.NewGuid(),
             OrderNumber = OrderNumbers.Format(restaurant, businessDate, sequence),
+            BusinessDate = businessDate,
             CustomerId = userId,
             RestaurantId = restaurantId,
             AddressId = address?.Id,

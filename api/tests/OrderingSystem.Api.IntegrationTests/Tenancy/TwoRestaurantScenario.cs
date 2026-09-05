@@ -120,6 +120,7 @@ public sealed class TwoRestaurantScenario : IAsyncLifetime
             PromisedMinutesMax = 30,
             IdempotencyKey = Guid.NewGuid(),
             PlacedAt = DateTimeOffset.UtcNow,
+            BusinessDate = DateOnly.FromDateTime(DateTime.UtcNow),
         });
 
         // The child rows are the point: filtering Orders alone leaves these wide open.

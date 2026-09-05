@@ -8,6 +8,7 @@ using OrderingSystem.Application.Features.Catalog;
 using OrderingSystem.Application.Features.Menu;
 using OrderingSystem.Application.Features.Orders;
 using OrderingSystem.Application.Features.Platform;
+using OrderingSystem.Application.Features.Reports;
 using OrderingSystem.Application.Features.Restaurants;
 
 namespace OrderingSystem.Application;
@@ -36,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<RestaurantZonesService>();
         services.AddScoped<RestaurantStaffService>();
         services.AddScoped<PlatformRestaurantsService>();
+        services.AddScoped<RestaurantReportService>();
 
         return services;
     }

@@ -2826,11 +2826,13 @@ export interface IRestaurantOrdersClient {
     /**
      * @param status (optional) 
      * @param newestFirst (optional) 
+     * @param from (optional) 
+     * @param to (optional) 
      * @param page (optional) 
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
+    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, from?: Date | undefined, to?: Date | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
 }
 
 @Injectable({
@@ -2849,11 +2851,13 @@ export class RestaurantOrdersClient implements IRestaurantOrdersClient {
     /**
      * @param status (optional) 
      * @param newestFirst (optional) 
+     * @param from (optional) 
+     * @param to (optional) 
      * @param page (optional) 
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
+    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, from?: Date | undefined, to?: Date | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
         let url_ = this.baseUrl + "/api/restaurant/orders?";
         if (status === null)
             throw new globalThis.Error("The parameter 'status' cannot be null.");
@@ -2863,6 +2867,14 @@ export class RestaurantOrdersClient implements IRestaurantOrdersClient {
             throw new globalThis.Error("The parameter 'newestFirst' cannot be null.");
         else if (newestFirst !== undefined)
             url_ += "newestFirst=" + encodeURIComponent("" + newestFirst) + "&";
+        if (from === null)
+            throw new globalThis.Error("The parameter 'from' cannot be null.");
+        else if (from !== undefined)
+            url_ += "from=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to === null)
+            throw new globalThis.Error("The parameter 'to' cannot be null.");
+        else if (to !== undefined)
+            url_ += "to=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
         if (page === null)
             throw new globalThis.Error("The parameter 'page' cannot be null.");
         else if (page !== undefined)
@@ -2907,6 +2919,101 @@ export class RestaurantOrdersClient implements IRestaurantOrdersClient {
             let result200: any = null;
             result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfOrderSummaryResponse;
             return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
+export interface IRestaurantReportsClient {
+    /**
+     * @param from (optional) 
+     * @param to (optional) 
+     * @return OK
+     */
+    summary(from?: Date | undefined, to?: Date | undefined): Observable<RestaurantReportResponse>;
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class RestaurantReportsClient implements IRestaurantReportsClient {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param from (optional) 
+     * @param to (optional) 
+     * @return OK
+     */
+    summary(from?: Date | undefined, to?: Date | undefined): Observable<RestaurantReportResponse> {
+        let url_ = this.baseUrl + "/api/restaurant/reports/summary?";
+        if (from === null)
+            throw new globalThis.Error("The parameter 'from' cannot be null.");
+        else if (from !== undefined)
+            url_ += "from=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to === null)
+            throw new globalThis.Error("The parameter 'to' cannot be null.");
+        else if (to !== undefined)
+            url_ += "to=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processSummary(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processSummary(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<RestaurantReportResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<RestaurantReportResponse>;
+        }));
+    }
+
+    protected processSummary(response: HttpResponseBase): Observable<RestaurantReportResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as RestaurantReportResponse;
+            return _observableOf(result200);
+            }));
+        } else if (status === 400) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            }));
+        } else if (status === 403) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Forbidden", status, _responseText, _headers, result403);
             }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
@@ -4292,6 +4399,14 @@ export interface RegisterRequest {
     [key: string]: any;
 }
 
+export interface RejectionBreakdown {
+    reason: RejectionReason;
+    count: number;
+    share: number;
+
+    [key: string]: any;
+}
+
 export enum RejectionReason {
     OutOfStock = 1,
     TooBusy = 2,
@@ -4299,6 +4414,29 @@ export enum RejectionReason {
     OutsideDeliveryArea = 4,
     CustomerUnreachable = 5,
     Other = 99,
+}
+
+export interface ReportDay {
+    date: Date;
+    orders: number;
+    rejected: number;
+    revenueUsd: number;
+    commissionUsd: number;
+
+    [key: string]: any;
+}
+
+export interface ReportTotals {
+    orders: number;
+    kept: number;
+    rejected: number;
+    cancelled: number;
+    revenueUsd: number;
+    commissionUsd: number;
+    averageOrderUsd: number;
+    rejectionRate: number;
+
+    [key: string]: any;
 }
 
 export interface ResetPasswordRequest {
@@ -4331,6 +4469,16 @@ export interface RestaurantMenu {
     name: string;
     slug: string;
     categories: MenuCategory[];
+
+    [key: string]: any;
+}
+
+export interface RestaurantReportResponse {
+    from: Date;
+    to: Date;
+    totals: ReportTotals;
+    days: ReportDay[];
+    rejections: RejectionBreakdown[];
 
     [key: string]: any;
 }

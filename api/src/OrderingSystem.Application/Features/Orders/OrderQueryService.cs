@@ -43,8 +43,13 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
     /// True for the history screen, where somebody is looking for what happened yesterday. False —
     /// the default, and what the kitchen queue gets — for a list that is worked from the top.
     /// </param>
+    /// <param name="from">
+    /// First business day to include, in the restaurant's own calendar. Both ends are optional and
+    /// inclusive; omitting both is every order the restaurant has ever taken.
+    /// </param>
     public async Task<PagedResult<OrderSummaryResponse>> ForRestaurantAsync(
         IReadOnlyCollection<OrderStatus>? statuses, bool newestFirst,
+        DateOnly? from, DateOnly? to,
         int? page, int? pageSize, CancellationToken ct = default)
     {
         var restaurantId = tenant.RestaurantId
@@ -55,6 +60,20 @@ public sealed class OrderQueryService(IAppDbContext db, ITenantContext tenant)
         if (statuses is { Count: > 0 })
         {
             query = query.Where(o => statuses.Contains(o.Status));
+        }
+
+        // On the business date rather than on PlacedAt, which is UTC. Somebody asking for "the
+        // 5th" means the day their kitchen worked, and the same day the report will show them —
+        // a filter that answered with a UTC window would disagree with the report by a few hours
+        // of every evening, and differently in winter and summer.
+        if (from is { } start)
+        {
+            query = query.Where(o => o.BusinessDate >= start);
+        }
+
+        if (to is { } end)
+        {
+            query = query.Where(o => o.BusinessDate <= end);
         }
 
         // Which end the list is read from is the caller's to say, and it has to be the server that

@@ -185,6 +185,7 @@ public sealed class SchemaTests(SqlServerFixture fixture) : IClassFixture<SqlSer
         PromisedMinutesMax = 30,
         IdempotencyKey = idempotencyKey,
         PlacedAt = DateTimeOffset.UtcNow,
+        BusinessDate = DateOnly.FromDateTime(DateTime.UtcNow),
     };
 
     private static Address NewAddress(Guid userId, Guid zoneId, bool isDefault = true) => new()

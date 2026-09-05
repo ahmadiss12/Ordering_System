@@ -118,6 +118,23 @@ public class Order
 
     public DateTimeOffset PlacedAt { get; set; }
 
+    /// <summary>
+    /// The restaurant's own calendar day, as printed in <see cref="OrderNumber"/>.
+    ///
+    /// <para>
+    /// Stored rather than derived from <see cref="PlacedAt"/>, which is UTC. Beirut runs two or
+    /// three hours ahead depending on the season, so an order taken at half past midnight is on
+    /// the previous UTC date — and a report grouped by that would put a Saturday evening's
+    /// takings partly under Friday, differently in winter and summer.
+    /// </para>
+    /// <para>
+    /// It is not new information either: checkout already computes this day to build the order
+    /// number, and this only stops it being thrown away. Keeping it means the day a report puts
+    /// an order under is the same day the customer can read off their own order number.
+    /// </para>
+    /// </summary>
+    public DateOnly BusinessDate { get; set; }
+
     public User Customer { get; set; } = null!;
     public Restaurant Restaurant { get; set; } = null!;
     public Address? Address { get; set; }

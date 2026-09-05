@@ -86,6 +86,11 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         // The background scan for orders nobody has answered.
         builder.HasIndex(o => new { o.Status, o.PlacedAt });
 
+        // Reporting, and the date filter on the history screen. Both ask the same question — one
+        // restaurant, a range of its own calendar days — and both group by it, so the date leads
+        // rather than the status.
+        builder.HasIndex(o => new { o.RestaurantId, o.BusinessDate });
+
         // --- invariants the database enforces on its own ---
         // The integer literals are the enum values pinned in Domain/Enums, which a Domain test
         // guards against renumbering.
@@ -98,6 +103,15 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             t.HasCheckConstraint(
                 "CK_Orders_DeliveryNeedsAddress",
                 $"[FulfillmentType] <> {(int)FulfillmentType.Delivery} OR [DeliveryLine1] IS NOT NULL");
+
+            // Catches an order built without a business date. EF sends every mapped column on an
+            // insert, so DateOnly's own default of 0001-01-01 would arrive as a real value and a
+            // column default would never fire — the order would simply vanish from every report
+            // instead of failing. The bound is arbitrary; being obviously before the platform
+            // existed is the whole of its job.
+            t.HasCheckConstraint(
+                "CK_Orders_BusinessDateIsReal",
+                "[BusinessDate] >= '2020-01-01'");
 
             t.HasCheckConstraint(
                 "CK_Orders_TotalsNonNegative",

@@ -27,12 +27,19 @@ public sealed class RestaurantOrdersController(OrderQueryService orders) : Contr
     /// preference a client can apply after the fact.
     /// </para>
     /// </summary>
+    /// <param name="from">
+    /// First business day to include, in the restaurant's own calendar. Left out of Phase 3 on
+    /// purpose, because a date filter that disagreed with the report about which day an order
+    /// belonged to would be worse than none — and the report is what settled that question.
+    /// </param>
     [HttpGet]
     public async Task<ActionResult<PagedResult<OrderSummaryResponse>>> Queue(
         [FromQuery] OrderStatus[]? status,
         [FromQuery] bool newestFirst,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
         CancellationToken ct) =>
-        Ok(await orders.ForRestaurantAsync(status, newestFirst, page, pageSize, ct));
+        Ok(await orders.ForRestaurantAsync(status, newestFirst, from, to, page, pageSize, ct));
 }

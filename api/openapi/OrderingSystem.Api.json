@@ -2715,6 +2715,22 @@
             }
           },
           {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
@@ -2756,6 +2772,94 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PagedResultOfOrderSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/restaurant/reports/summary": {
+      "get": {
+        "tags": [
+          "RestaurantReports"
+        ],
+        "operationId": "RestaurantReports_Summary",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestaurantReportResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestaurantReportResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestaurantReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5727,6 +5831,35 @@
           }
         }
       },
+      "RejectionBreakdown": {
+        "required": [
+          "reason",
+          "count",
+          "share"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/RejectionReason"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "share": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "RejectionReason": {
         "enum": [
           1,
@@ -5745,6 +5878,133 @@
           "CustomerUnreachable",
           "Other"
         ]
+      },
+      "ReportDay": {
+        "required": [
+          "date",
+          "orders",
+          "rejected",
+          "revenueUsd",
+          "commissionUsd"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "orders": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rejected": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "revenueUsd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "commissionUsd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ReportTotals": {
+        "required": [
+          "orders",
+          "kept",
+          "rejected",
+          "cancelled",
+          "revenueUsd",
+          "commissionUsd",
+          "averageOrderUsd",
+          "rejectionRate"
+        ],
+        "type": "object",
+        "properties": {
+          "orders": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kept": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rejected": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cancelled": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "revenueUsd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "commissionUsd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "averageOrderUsd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rejectionRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
       },
       "ResetPasswordRequest": {
         "required": [
@@ -5869,6 +6129,41 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MenuCategory"
+            }
+          }
+        }
+      },
+      "RestaurantReportResponse": {
+        "required": [
+          "from",
+          "to",
+          "totals",
+          "days",
+          "rejections"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportDay"
+            }
+          },
+          "rejections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RejectionBreakdown"
             }
           }
         }
@@ -6517,6 +6812,9 @@
     },
     {
       "name": "RestaurantOrders"
+    },
+    {
+      "name": "RestaurantReports"
     },
     {
       "name": "Restaurants"
