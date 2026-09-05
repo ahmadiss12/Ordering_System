@@ -1,0 +1,125 @@
+.frame {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+}
+
+h1 {
+  margin: 0 0 0.35rem;
+  font: var(--mat-sys-headline-small);
+}
+
+.muted {
+  margin: 0 0 1rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+
+  // An outlined field's floating label overhangs its own top edge by about 7px, so stacked
+  // fields need more than a hairline between them: measured at 390px, a hint under one field
+  // and the label of the next overlapped by 3px until this was widened.
+  gap: 0.75rem;
+}
+
+.failed {
+  margin: 0 0 0.75rem;
+  color: var(--mat-sys-error);
+}
+
+.sent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  color: var(--mat-sys-primary);
+}
+
+.other {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  a {
+    color: var(--mat-sys-primary);
+    text-decoration: none;
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+// ---------------------------------------------------------------- the account screen
+//
+// Shares this file with the four signed-out forms above because they are the same set of
+// controls in the same words; only the frame differs. A signed-out form is one card in the
+// middle of an empty page, while this one is a normal page with a heading and two cards.
+
+.intro {
+  margin-bottom: 1rem;
+
+  h1 {
+    margin: 0 0 0.25rem;
+  }
+
+  .muted {
+    margin: 0;
+  }
+}
+
+.page .card {
+  max-width: none;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0 0 0.75rem;
+    font: var(--mat-sys-title-medium);
+  }
+}
+
+.email {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font: var(--mat-sys-body-large);
+
+  mat-icon {
+    color: var(--mat-sys-on-surface-variant);
+    flex: none;
+  }
+
+  .note {
+    display: block;
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-body-small);
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ok {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-body-medium);
+}
+
+.leave {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0 3rem;
+}

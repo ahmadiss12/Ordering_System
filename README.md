@@ -35,7 +35,7 @@ walks in full.
 |---|---|
 | API | ASP.NET Core on .NET 10 (LTS), Clean Architecture |
 | Database | SQL Server, EF Core code-first |
-| Web | Angular — staff dashboard (Phases 2–3); customer storefront (Phase 5) |
+| Web | Angular — staff dashboard (Phases 2–4); customer storefront (Phase 5) |
 | Mobile | React Native / Expo (Phase 5) |
 | Real-time | SignalR |
 
@@ -168,6 +168,8 @@ honest answer to "does it pass".
 | Menu editing, and 403 across restaurants | `Api.IntegrationTests/Menu` | yes |
 | Token refresh, sharing one exchange across requests | `web` — `auth` library | no |
 | The login screen, guards and the shell's role split | `web` — `dashboard` | no |
+| Password rules and the reset screen both apps share | `web` — `ui` library | no |
+| Register, sign in, the profile and changing a password | `web` — `storefront` | no |
 | The menu store, item form and selection rules | `web` — `dashboard` | no |
 | Sign in, add a dish, see it on the public menu | `web/e2e` — Playwright | yes |
 

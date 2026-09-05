@@ -51,7 +51,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Jwt:SigningKey"] = "integration-test-signing-key-at-least-32-chars",
-                ["Auth:AppBaseUrl"] = "http://localhost:4200",
+                // Two different origins on purpose, so a test can tell which link a mail carried:
+                // a customer's reset goes to the storefront and a staff invitation to the
+                // dashboard, and a single value would let them be swapped without noticing.
+                ["Auth:AppBaseUrl"] = "http://storefront.test",
+                ["Auth:DashboardBaseUrl"] = "http://dashboard.test",
             }));
 
         // Without this, a 500 in a test is opaque: the exception handler deliberately hides the

@@ -62,3 +62,24 @@ internal static class PasswordRules
             .Matches("[A-Za-z]").WithMessage("Password must contain a letter.")
             .Matches("[0-9]").WithMessage("Password must contain a digit.");
 }
+
+public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+{
+    public UpdateProfileRequestValidator()
+    {
+        RuleFor(r => r.FullName).NotEmpty().MaximumLength(200);
+
+        // Required, unlike a staff member's. This is the number a courier rings when they cannot
+        // find the building, and an order without one is a doorstep nobody answers.
+        RuleFor(r => r.Phone).NotEmpty().MaximumLength(32);
+    }
+}
+
+public sealed class ChangePasswordRequestValidator : AbstractValidator<ChangePasswordRequest>
+{
+    public ChangePasswordRequestValidator()
+    {
+        RuleFor(r => r.CurrentPassword).NotEmpty();
+        RuleFor(r => r.NewPassword).ApplyPasswordRules();
+    }
+}

@@ -24,3 +24,24 @@
 main {
   display: block;
 }
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.sign-in {
+  color: var(--mat-sys-on-primary);
+}
+
+// A circle with a letter in it, rather than a generic silhouette: it says which account is signed
+// in, which matters on a shared phone.
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--mat-sys-on-primary);
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-large);
+}

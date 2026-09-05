@@ -3,6 +3,18 @@
     <mat-icon>restaurant</mat-icon>
     <span>Order food</span>
   </a>
+
+  <span class="spacer"></span>
+
+  @if (session.isAuthenticated()) {
+    <a matIconButton routerLink="/account" [attr.aria-label]="'Your account, ' + session.email()">
+      <span class="avatar">{{ initial() }}</span>
+    </a>
+  } @else {
+    <!-- Named rather than drawn. This is the one control a first-time visitor has to find, and a
+         silhouette in a circle is not a word. -->
+    <a matButton routerLink="/login" class="sign-in">Sign in</a>
+  }
 </mat-toolbar>
 
 <main>

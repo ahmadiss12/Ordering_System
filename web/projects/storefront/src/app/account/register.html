@@ -1,0 +1,54 @@
+<div class="frame">
+  <mat-card appearance="outlined" class="card">
+    <mat-card-content>
+      <h1>Create an account</h1>
+      <p class="muted">So your orders are yours, and a courier can reach you.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline">
+          <mat-label>Your name</mat-label>
+          <input matInput formControlName="fullName" autocomplete="name" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+          @if (form.controls.email.hasError('email') && form.controls.email.touched) {
+            <mat-error>That does not look like an email address.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Phone</mat-label>
+          <input matInput type="tel" formControlName="phone" autocomplete="tel" />
+          <!-- Said plainly, because being asked for a number without a reason reads as marketing. -->
+          <mat-hint>What the courier rings if they cannot find you.</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="password" autocomplete="new-password" />
+          @if (form.controls.password.hasError('minlength')) {
+            <mat-error>At least {{ minLength }} characters.</mat-error>
+          } @else if (form.controls.password.hasError('needsLetter')) {
+            <mat-error>Add a letter.</mat-error>
+          } @else if (form.controls.password.hasError('needsDigit')) {
+            <mat-error>Add a number.</mat-error>
+          } @else {
+            <mat-hint>{{ passwordHint }}</mat-hint>
+          }
+        </mat-form-field>
+
+        @if (error(); as message) {
+          <p class="failed" role="alert">{{ message }}</p>
+        }
+
+        <button matButton="filled" type="submit" [disabled]="busy()">Create my account</button>
+      </form>
+
+      <div class="other">
+        <a routerLink="/login">I already have an account</a>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

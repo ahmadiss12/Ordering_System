@@ -9,6 +9,13 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/login').then((m) => m.Login),
   },
   {
+    // Where a staff invitation lands. Anonymous, because somebody choosing their first password
+    // has no account to be signed into yet — and it sat unrouted from Phase 4 until Phase 5,
+    // so every invitation emailed in between pointed at a page that redirected the token away.
+    path: 'reset-password',
+    loadComponent: () => import('ui').then((m) => m.ResetPassword),
+  },
+  {
     // Everything signed-in lives inside the shell, so the toolbar and navigation are laid out
     // once rather than repeated by each screen.
     path: '',

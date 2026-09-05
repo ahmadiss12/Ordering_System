@@ -1,0 +1,133 @@
+<div class="page">
+  <header class="intro">
+    <h1>Your account</h1>
+    <p class="muted">The name and number a restaurant sees when you order.</p>
+  </header>
+
+  @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  <!-- Same rule as the rest of the product: a failed load draws nothing rather than drawing an
+       empty form, because an empty form here looks like an account with no name in it. -->
+  @if (store.loaded()) {
+    <mat-card appearance="outlined" class="card">
+      <mat-card-content>
+        <h2>Your details</h2>
+
+        <p class="email">
+          <mat-icon>mail</mat-icon>
+          <span>
+            {{ store.profile()?.email }}
+            <span class="note">This is your account. Write to us to change it.</span>
+          </span>
+        </p>
+
+        <form [formGroup]="details" (ngSubmit)="saveDetails()">
+          <mat-form-field appearance="outline">
+            <mat-label>Your name</mat-label>
+            <input matInput formControlName="fullName" autocomplete="name" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Phone</mat-label>
+            <input matInput type="tel" formControlName="phone" autocomplete="tel" />
+            <mat-hint>What the courier rings if they cannot find you.</mat-hint>
+          </mat-form-field>
+
+          @if (store.error(); as message) {
+            <p class="failed" role="alert">{{ message }}</p>
+          }
+
+          <div class="actions">
+            <button
+              matButton="filled"
+              type="submit"
+              [disabled]="store.saving() || details.pristine"
+            >
+              Save
+            </button>
+
+            @if (store.saved()) {
+              <span class="ok">
+                <mat-icon>check</mat-icon>
+                Saved
+              </span>
+            }
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="card">
+      <mat-card-content>
+        <h2>Password</h2>
+        <p class="muted">
+          Changing it ends every session, on every device &mdash; including this one. You will be
+          asked to sign in again with the new one.
+        </p>
+
+        <form [formGroup]="password" (ngSubmit)="changePassword()">
+          <mat-form-field appearance="outline">
+            <mat-label>Current password</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="current"
+              autocomplete="current-password"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>New password</mat-label>
+            <input matInput type="password" formControlName="next" autocomplete="new-password" />
+            @if (password.controls.next.hasError('minlength')) {
+              <mat-error>At least {{ minLength }} characters.</mat-error>
+            } @else if (password.controls.next.hasError('needsLetter')) {
+              <mat-error>Add a letter.</mat-error>
+            } @else if (password.controls.next.hasError('needsDigit')) {
+              <mat-error>Add a number.</mat-error>
+            } @else {
+              <mat-hint>{{ passwordHint }}</mat-hint>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Repeat it</mat-label>
+            <input matInput type="password" formControlName="confirm" autocomplete="new-password" />
+            <!-- Asked for twice because there is no way back from a typo here either: the box is
+                 masked, and the alternative route in is an email. -->
+            @if (password.controls.confirm.hasError('mismatch')) {
+              <mat-error>Those two do not match.</mat-error>
+            }
+          </mat-form-field>
+
+          @if (store.passwordError(); as message) {
+            <p class="failed" role="alert">{{ message }}</p>
+          }
+
+          <div class="actions">
+            <button matButton="filled" type="submit" [disabled]="store.changingPassword()">
+              Change my password
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+    <div class="leave">
+      <button matButton (click)="signOut()">
+        <mat-icon>logout</mat-icon>
+        Sign out
+      </button>
+    </div>
+  } @else if (!store.loading()) {
+    <mat-card appearance="outlined" class="card">
+      <mat-card-content>
+        <p class="failed" role="alert">
+          {{ store.error() ?? 'Your details could not be loaded.' }}
+        </p>
+        <button matButton (click)="store.load()">Try again</button>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

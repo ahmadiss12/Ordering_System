@@ -209,6 +209,10 @@ public sealed class AuthFlowTests(ApiFactory factory) : IClassFixture<ApiFactory
     private string ExtractResetToken(string email)
     {
         var body = factory.Emails.Sent.Last(m => m.To == email).Body;
+
+        // The storefront, where a customer is. A staff invitation carries the dashboard instead,
+        // and the two are separate settings so one cannot quietly become the other.
+        body.ShouldContain("storefront.test/reset-password");
         var match = Regex.Match(body, @"token=([A-Za-z0-9_\-%]+)", RegexOptions.None, TimeSpan.FromSeconds(1));
         match.Success.ShouldBeTrue("the reset email must carry a token");
         return Uri.UnescapeDataString(match.Groups[1].Value);

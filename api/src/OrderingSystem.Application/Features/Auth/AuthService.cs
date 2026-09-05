@@ -19,6 +19,7 @@ namespace OrderingSystem.Application.Features.Auth;
 public sealed class AuthService(
     IAppDbContext db,
     IValidationService validation,
+    ITenantGuard guard,
     IPasswordHasher passwordHasher,
     IAccessTokenIssuer tokenIssuer,
     IEmailSender emailSender,
@@ -225,6 +226,100 @@ public sealed class AuthService(
         foreach (var refresh in live)
         {
             refresh.RevokedAt = clock.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    // ------------------------------------------------------------------ your own account
+
+    /// <summary>
+    /// Who the caller is, read back from the database rather than from their token.
+    ///
+    /// <para>
+    /// The token would be cheaper and sometimes wrong: it was minted when they signed in, and a
+    /// name corrected since then, or a role granted since then, is not in it. A screen showing a
+    /// name somebody has already changed would look broken in a way nothing could explain.
+    /// </para>
+    /// </summary>
+    public async Task<ProfileResponse> MeAsync(CancellationToken ct = default)
+    {
+        var userId = guard.RequireUserId();
+
+        var user = await db.Users.AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => new
+            {
+                u.Id, u.Email, u.FullName, u.Phone, u.MustSetPassword,
+                Roles = u.Roles.Select(r => r.Role.ToString()).ToList(),
+            })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new AuthenticationFailedException("This account no longer exists.");
+
+        return new ProfileResponse(
+            user.Id, user.Email, user.FullName, user.Phone, user.MustSetPassword, user.Roles);
+    }
+
+    public async Task<ProfileResponse> UpdateProfileAsync(
+        UpdateProfileRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        await validation.ValidateAsync(request, ct);
+
+        var userId = guard.RequireUserId();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct)
+            ?? throw new AuthenticationFailedException("This account no longer exists.");
+
+        user.FullName = request.FullName.Trim();
+        user.Phone = request.Phone.Trim();
+
+        // Nothing here changes an order that has already been placed. Every order snapshots the
+        // address and the name it was placed with, so correcting a phone number today does not
+        // rewrite what a courier was told last week.
+        await db.SaveChangesAsync(ct);
+
+        return await MeAsync(ct);
+    }
+
+    /// <summary>
+    /// Changes a password from inside a session, which is a different act from resetting a
+    /// forgotten one and needs a different proof.
+    ///
+    /// <para>
+    /// The current password is required even though the caller is signed in. A borrowed phone or
+    /// a stolen token is a session; letting it set a new password without proving the old one
+    /// turns that into ownership of the account, permanently and without the owner noticing.
+    /// </para>
+    /// </summary>
+    public async Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        await validation.ValidateAsync(request, ct);
+
+        var userId = guard.RequireUserId();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct)
+            ?? throw new AuthenticationFailedException("This account no longer exists.");
+
+        if (!passwordHasher.Verify(user.PasswordHash, request.CurrentPassword))
+        {
+            throw new AuthenticationFailedException("That is not your current password.");
+        }
+
+        user.PasswordHash = passwordHasher.Hash(request.NewPassword);
+
+        // Somebody who has just been invited has no password to prove, so they cannot reach here
+        // at all - but if they somehow did, choosing one settles the invitation.
+        user.MustSetPassword = false;
+
+        // Every other session ends, exactly as a reset does. Somebody changing their password
+        // because a phone went missing has changed nothing if the phone stays signed in.
+        var live = await db.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ToListAsync(ct);
+
+        foreach (var token in live)
+        {
+            token.RevokedAt = clock.UtcNow;
         }
 
         await db.SaveChangesAsync(ct);

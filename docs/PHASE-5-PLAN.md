@@ -67,7 +67,7 @@ the risk in this phase is the interface, not the server, and that is where the e
 
 ## 4. Steps
 
-### Step 1 — The shell, and finding somewhere to eat
+### Step 1 — The shell, and finding somewhere to eat ✅
 
 The storefront application proper: layout, routing, and the two screens that need no account —
 the list of restaurants, and one restaurant's page with its menu.
@@ -80,14 +80,56 @@ deciding where to order from.
 Filtering by "delivers to me" needs an address, which arrives in Step 3. Until then the list shows
 everything and each restaurant's page says where it delivers.
 
-### Step 2 — Being somebody
+**Two contract records were both called `OpeningWindow`.** Different C# namespaces, one flat
+OpenAPI schema namespace — so they collapsed into one schema, the hours editor's shape won, and
+the generated client had been describing a restaurant's public hours with the wrong field name
+since Phase 4. The contract-drift job in CI structurally cannot see this: it regenerates from the
+same wrong document and finds no difference. `ContractNameCollisionTests` now walks the
+Application assembly for duplicate record names under `Features.` and fails on one.
+
+### Step 2 — Being somebody ✅
 
 Register, sign in, sign out, forgotten password, and a profile that can correct a name, a phone
 number or a password.
 
 The machinery all exists in `shared/auth`; this is screens plus one small endpoint for the profile.
 The invitation flow Phase 4 built lands here too: somebody invited to run a restaurant follows a
-link into `/reset-password`, which is a storefront route.
+link into `/reset-password`.
+
+**`/reset-password` did not exist in either application.** Every password-reset email since Phase 1
+and every staff invitation since Phase 4 pointed at a route neither app routed. The dashboard's
+catch-all sent it to `''`, whose `authGuard` bounced to `/login` and dropped the token on the way,
+so the link could not have worked for anybody. Nothing caught it because every test followed those
+links through the API rather than through a browser — the screen at the end of the link was the
+one part nobody had ever opened. It is now one component in `shared/ui`, routed by both apps, and
+verified by driving a real emailed link in a real browser in each.
+
+**One email, two destinations.** A customer who forgot a password belongs on the storefront; an
+invited owner belongs on the dashboard, because that is where the screens they were invited for
+are. `AuthOptions` grew `DashboardBaseUrl` beside `AppBaseUrl`, and two integration tests pin which
+origin each email carries so the pair cannot quietly become one again.
+
+**The password rules had already drifted.** The server has asked for ten characters with a letter
+and a digit since Phase 1. All three front-end forms asked for eight and checked nothing else, so
+each would accept a password, send it, and show a server validation message in place of its own.
+The rules now live once in `shared/ui` — which is what that library was for — and a test pins the
+numbers against the C# validator, since FluentValidation's rules are not in the OpenAPI document
+and no generated client can carry them.
+
+**The mismatch message could not be seen.** Comparing the two password boxes in a component method
+left the confirmation control valid, and Angular Material only draws a `mat-error` for a control in
+an error state — so pressing the button did nothing and said nothing. The check is a group
+validator that sets the error on the control the message sits under. A unit test found it; a person
+would have found it as a form that ignores them.
+
+**`[AllowAnonymous]` on the controller silently overrides `[Authorize]` on an action.** The
+analyser (ASP0026) refused to build `/me` endpoints added to `AuthController`, which is the only
+reason they are not anonymous today. They live in their own `MeController`.
+
+**The toolbar account menu was measured and removed.** `mat-menu` pulls the CDK overlay into the
+initial bundle: 17kB gzipped on every first load, paid by every visitor including the majority who
+never sign in, to save one tap for the ones who do. The avatar is a link to the account page, which
+already shows the address and now carries the sign-out button.
 
 ### Step 3 — Where the food is going
 

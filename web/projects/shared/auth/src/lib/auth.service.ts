@@ -42,6 +42,20 @@ export class AuthService {
     );
   }
 
+  /**
+   * Creates an account and signs straight into it.
+   *
+   * No "now please log in" step: somebody who has just typed their password twice has proved they
+   * know it, and asking for it again is a screen that exists only because the code was easier
+   * that way.
+   */
+  register(email: string, password: string, fullName: string, phone: string): Observable<void> {
+    return this.authClient.register({ email, password, fullName, phone }).pipe(
+      tap((tokens) => this.session.signIn(tokens)),
+      map(() => undefined),
+    );
+  }
+
   forgotPassword(email: string): Observable<void> {
     return this.authClient.forgotPassword({ email }).pipe(map(() => undefined));
   }

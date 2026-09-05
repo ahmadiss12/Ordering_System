@@ -223,7 +223,10 @@ public sealed partial class StaffInvitations(
         });
         await db.SaveChangesAsync(ct);
 
-        var link = $"{_options.AppBaseUrl.TrimEnd('/')}/reset-password" +
+        // The dashboard, not the storefront. They are being invited to run a restaurant, and
+        // landing them on the customer app would sign them in somewhere with none of the screens
+        // the invitation was about.
+        var link = $"{_options.DashboardBaseUrl.TrimEnd('/')}/reset-password" +
             $"?token={Uri.EscapeDataString(token)}&invited=1";
 
         return await TrySendAsync(

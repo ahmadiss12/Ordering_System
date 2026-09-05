@@ -90,6 +90,11 @@ public sealed class RestaurantStaffTests(ApiFactory factory) : IClassFixture<Api
             var sent = factory.Emails.Sent.Last(m => m.To == email);
             sent.Body.ShouldContain("reset-password?token=");
             sent.Subject.ShouldContain("Shawarma Station");
+
+            // The dashboard, not the storefront. They are being invited to run a restaurant, and
+            // the customer app has none of the screens the invitation was about. Every one of
+            // these links pointed at a page that did not exist until Phase 5 built one.
+            sent.Body.ShouldContain("dashboard.test/reset-password");
         }
         finally
         {
