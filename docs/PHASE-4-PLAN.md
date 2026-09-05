@@ -273,11 +273,47 @@ list coarse enough to send a 27-order day to an axis of 50, a pinned SVG height 
 both charts 1.6x horizontally, and a day-label row that lined up with the plot at exactly one
 window width.
 
-### Step 7 — E2E and phase close
+### Step 7 — E2E and phase close ✅
 
 Set up a restaurant from nothing through the product alone: hours, a zone, a fee, a staff account,
 then place an order against it and have the kitchen work it. If that passes, the product can
 onboard a customer.
+
+**It passes.** `web/e2e/onboarding.spec.ts` walks it: the platform lists Saj Corner and settles its
+commission, its owner sets hours, a delivery zone and fee, hires somebody and adds a dish, and
+then a customer reads the public menu, orders that dish, and the kitchen takes it to delivered.
+The accounts are handed over by signing out, not by swapping tokens — the guard that keeps a
+signed-in visitor off the login page is part of what is being claimed.
+
+**The seed gained a restaurant with nothing set up.** Hidden, no hours, no zones, no menu. That is
+the state a restaurant is in between the platform creating it and its owner configuring it, and it
+existed nowhere: three finished restaurants cannot show it. The journey resets it each run, which
+is what makes "from nothing" true on the second run as well as the first.
+
+**Writing it found a live bug.** Opening the hours screen and pressing Save without touching
+anything shut an around-the-clock restaurant for the last minute of every day: the form held times
+as `HH:mm`, so the closing value that means "does not close" round-tripped to 23:59, which is a
+real closing time. No owner could enter the hours the seeded always-open restaurant had. The
+screen now says the words instead of showing two boxes it cannot fill.
+
+**What the journey cannot prove, and why.** The delivery fee reaches no customer's bill in it,
+because a customer has no way to have an address yet — that endpoint arrives with the storefront
+in phase 5. The zone step proves the fee round-trips through the server; the integration suite
+proves the rest against the database.
+
+---
+
+## 7. What this phase left undone
+
+Named rather than quietly dropped.
+
+| | |
+|---|---|
+| **A restaurant cannot be created through the product.** Only the seeder makes one. A platform admin can list, hide and price a restaurant, but the row itself has to exist already — so onboarding still starts with a database insert. |
+| **Nothing records who changed a commission rate, or when.** For a field that decides what a restaurant is paid, an audit trail is the obvious next thing; it needs a table rather than a corner of a step. |
+| **An invitation cannot be re-sent.** The recovery path is to remove the person and invite them again, which issues a fresh link and is tested — but it is a workaround wearing the shape of a feature. |
+| **One person, one restaurant.** The composite key allows two memberships; an access token carries one `restaurant_id` and nothing lets its holder choose. Invitations refuse the second rather than let the database decide. Switching between restaurants is its own feature. |
+| **Online payments.** Decision 1 moved them to their own phase. Cash on delivery blocks nobody in Lebanon. |
 
 ---
 
