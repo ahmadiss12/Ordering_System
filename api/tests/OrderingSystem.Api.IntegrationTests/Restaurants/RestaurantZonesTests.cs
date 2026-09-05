@@ -84,10 +84,21 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
             var listed = (await ZonesAsync(owner)).Single(z => z.ZoneId == zone.ZoneId);
             listed.IsServed.ShouldBeTrue();
             listed.EstimatedMinutes.ShouldBe(25);
+
+            // Restoring here rather than only in the finally, so the cleanup itself is asserted.
+            // A restore that left the zone unserved-but-with-terms would poison whichever test
+            // ran next looking for an untouched zone, and the failure would land over there,
+            // intermittently, with nothing to point back at this test.
+            await RestoreAsync(owner, zone);
+
+            var restored = (await ZonesAsync(owner)).Single(z => z.ZoneId == zone.ZoneId);
+            restored.IsServed.ShouldBeFalse();
+            restored.DeliveryFeeUsd.ShouldBeNull();
+            restored.EstimatedMinutes.ShouldBeNull();
         }
         finally
         {
-            await SetAsync(owner, zone.ZoneId, new SetRestaurantZoneRequest(false, 0m, 1));
+            await RestoreAsync(owner, zone);
         }
     }
 
@@ -96,7 +107,6 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
     {
         var owner = await SignInAsync(Owner);
         var zone = (await ZonesAsync(owner)).First(z => z.IsServed);
-        var before = new SetRestaurantZoneRequest(true, zone.DeliveryFeeUsd!.Value, zone.EstimatedMinutes!.Value);
 
         try
         {
@@ -114,7 +124,7 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
         }
         finally
         {
-            await SetAsync(owner, zone.ZoneId, before);
+            await RestoreAsync(owner, zone);
         }
     }
 
@@ -163,7 +173,6 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
     {
         var owner = await SignInAsync(Owner);
         var zone = (await ZonesAsync(owner)).First(z => z.IsServed);
-        var before = new SetRestaurantZoneRequest(true, zone.DeliveryFeeUsd!.Value, zone.EstimatedMinutes!.Value);
 
         try
         {
@@ -175,7 +184,7 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
         }
         finally
         {
-            await SetAsync(owner, zone.ZoneId, before);
+            await RestoreAsync(owner, zone);
         }
     }
 
@@ -207,7 +216,7 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
         }
         finally
         {
-            await SetAsync(owner, zoneId, before);
+            await RestoreAsync(owner, terms);
             await ClearBasketAsync(customer, restaurantId);
         }
     }
@@ -242,7 +251,7 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
         }
         finally
         {
-            await SetAsync(owner, zoneId, before);
+            await RestoreAsync(owner, terms);
             await ClearBasketAsync(customer, restaurantId);
         }
     }
@@ -257,10 +266,6 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
         var zone = friesLabBefore.First(z => z.IsServed);
         var mezzeTerms = (await ZonesAsync(mezze)).Single(z => z.ZoneId == zone.ZoneId);
 
-        var restore = mezzeTerms.IsServed
-            ? new SetRestaurantZoneRequest(true, mezzeTerms.DeliveryFeeUsd!.Value, mezzeTerms.EstimatedMinutes!.Value)
-            : new SetRestaurantZoneRequest(false, mezzeTerms.DeliveryFeeUsd ?? 0m, mezzeTerms.EstimatedMinutes ?? 1);
-
         try
         {
             // The zone id is in the route, but the restaurant id is not — it comes from the token,
@@ -273,7 +278,7 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
         }
         finally
         {
-            await SetAsync(mezze, zone.ZoneId, restore);
+            await RestoreAsync(mezze, mezzeTerms);
         }
     }
 
@@ -351,6 +356,33 @@ public sealed class RestaurantZonesTests(ApiFactory factory) : IClassFixture<Api
         response.IsSuccessStatusCode.ShouldBeTrue($"checkout failed: {body}");
 
         return (await response.Content.ReadFromJsonAsync<PlacedOrderResponse>(Ct))!;
+    }
+
+    /// <summary>
+    /// Puts a zone back exactly as it was found, including the case of not existing.
+    ///
+    /// <para>
+    /// Suspending is not a restore. The API deliberately keeps a suspended zone's fee, so there is
+    /// no request that returns a never-configured zone to having no terms — only deleting the row
+    /// does that. A <c>finally</c> that suspended with a placeholder fee instead left an unserved
+    /// zone carrying terms of $0.00, and then whichever test ran next looking for an untouched
+    /// zone could pick that one and fail. Passing was a matter of which order xUnit chose.
+    /// </para>
+    /// </summary>
+    private async Task RestoreAsync(HttpClient owner, RestaurantZoneResponse before)
+    {
+        if (before.DeliveryFeeUsd is { } fee && before.EstimatedMinutes is { } minutes)
+        {
+            await SetAsync(owner, before.ZoneId, new SetRestaurantZoneRequest(before.IsServed, fee, minutes));
+            return;
+        }
+
+        var restaurantId = await RestaurantIdAsync();
+        await using var db = factory.CreateDbContext(TestTenant.PlatformAdmin());
+
+        await db.RestaurantZones
+            .Where(z => z.RestaurantId == restaurantId && z.ZoneId == before.ZoneId)
+            .ExecuteDeleteAsync(Ct);
     }
 
     private async Task<Guid> RestaurantIdAsync()
