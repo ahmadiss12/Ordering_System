@@ -153,13 +153,44 @@ should not have to charge a cent to satisfy a validator.
 suspending a zone somebody has a saved address in, and watching their next order be refused by
 name; and raising a fee, watching the next quote move, and watching an order already placed not.
 
-### Step 4 — Staff accounts
+### Step 4 — Staff accounts ✅
 
 An owner invites staff, sets their role, and removes them. The `RestaurantStaff` row is what puts
 the `restaurant_id` claim in a token, so this is the most security-sensitive screen in the phase —
 adding a row here grants somebody access to a tenant's orders.
 
-The last-owner rule lives here.
+**A prerequisite came first.** The Order query filter read "a customer with no restaurant claim
+sees their own orders", so being hired erased your own order history. That was tolerable while
+staff were seed data and intolerable the moment an owner could invite by email — the person being
+hired is usually already a customer here. It now reads "everybody sees their own", which widens
+nothing except a caller's own rows.
+
+**One account, not two.** An invited address that already has an account is reused. A second
+account would strand the person's history on an address they can no longer sign in with. An
+unknown address gets an account holding a hash of a discarded secret — no password anybody knows —
+and a link to choose one, valid for days rather than the reset link's hours: somebody recovering
+their own account is waiting at the screen, somebody being hired may not read their mail until
+their next shift.
+
+**One restaurant per person, for now.** The composite key allows two memberships but a token
+carries one `restaurant_id` and nothing lets its holder choose, so a second row would leave the
+tenant to whichever the database returned first. Invitations refuse it, and the claim query is
+ordered so the answer is at least defined. Switching between restaurants is its own feature.
+
+**Two role systems, moved in one place.** The global `RoleType` decides which endpoints a token
+opens; the per-restaurant `StaffRoleType` decides what somebody is here. Set one without the other
+and you get an owner who cannot open the owner screens, or a demoted owner who still can.
+
+**The last-owner rule, and the rule that nearly hid it.** An earlier draft also banned acting on
+your own account. It read as prudent and made the last-owner check unreachable: every route to
+demoting an owner requires a second owner, so the target was never the last. A mutation to the
+count changed nothing and no test failed. Self-service is allowed, the count is what refuses, and
+an owner can hand over by promoting a successor and then stepping back.
+
+**A mail server that is down does not undo an invitation.** The row is committed before the email
+is attempted, so an exception told an owner nothing had happened while somebody had just been
+granted the order book. The send is best-effort and the response says whether it worked, keeping
+"emailed", "nothing to send" and "should have been sent and was not" apart.
 
 ### Step 5 — The platform admin
 
