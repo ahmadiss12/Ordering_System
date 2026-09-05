@@ -137,3 +137,60 @@
     grid-column: 1 / -1;
   }
 }
+
+.take-on {
+  margin-bottom: 1rem;
+}
+
+.new-restaurant {
+  margin-bottom: 1rem;
+
+  h3 {
+    margin: 1.25rem 0 0.25rem;
+    font: var(--mat-sys-title-small);
+  }
+
+  h3:first-of-type {
+    margin-top: 1rem;
+  }
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  // A row gap as well as a column one: an outlined field floats its label onto its own top
+  // border, which lands on the hint of the field above when the rows are flush.
+  gap: 0.75rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.submit {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.created {
+  margin-bottom: 1rem;
+
+  mat-card-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  mat-icon {
+    color: var(--mat-sys-primary);
+  }
+
+  .heading {
+    margin: 0 0 0.15rem;
+    font: var(--mat-sys-title-small);
+  }
+
+  p.muted {
+    margin: 0;
+    max-width: 70ch;
+  }
+}

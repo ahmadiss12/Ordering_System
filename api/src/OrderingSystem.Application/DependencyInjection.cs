@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<RestaurantSettingsService>();
         services.AddScoped<OpeningHoursService>();
         services.AddScoped<RestaurantZonesService>();
+        services.AddScoped<StaffInvitations>();
         services.AddScoped<RestaurantStaffService>();
         services.AddScoped<PlatformRestaurantsService>();
         services.AddScoped<RestaurantReportService>();

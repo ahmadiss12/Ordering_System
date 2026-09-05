@@ -3,6 +3,7 @@ using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Domain.Enums;
 using OrderingSystem.Domain.Exceptions;
 using OrderingSystem.Domain.Orders;
+using OrderingSystem.Application.Features.Restaurants;
 
 namespace OrderingSystem.Application.Features.Platform;
 
@@ -25,8 +26,119 @@ namespace OrderingSystem.Application.Features.Platform;
 /// </para>
 /// </summary>
 public sealed class PlatformRestaurantsService(
-    IAppDbContext db, ITenantGuard guard, IValidationService validation)
+    IAppDbContext db,
+    ITenantGuard guard,
+    IValidationService validation,
+    IClock clock,
+    StaffInvitations invitations)
 {
+    /// <summary>How long a link may be, matching the column. Kept here so slugs are trimmed to fit
+    /// rather than refused by the database.</summary>
+    private const int MaxSlugLength = 120;
+
+    /// <summary>
+    /// Takes a restaurant on to the platform and hands it to somebody.
+    ///
+    /// <para>
+    /// Until this existed, onboarding began with a database insert: an admin could list, hide and
+    /// price a restaurant, but the row itself had to be put there by hand. That made the last
+    /// mile of the product a support task.
+    /// </para>
+    /// <para>
+    /// It arrives in exactly the state a restaurant is in before anybody has set it up — hidden,
+    /// no hours, no delivery zones, no menu — because those are the owner's to decide and the
+    /// platform guessing at them would be worse than an empty screen. Hidden especially: a
+    /// restaurant that appeared to customers the moment it was created would take orders it has
+    /// no hours for and no way to deliver.
+    /// </para>
+    /// <para>
+    /// The owner is invited through the same path a colleague is, so an address that already
+    /// shops here keeps its account and its order history.
+    /// </para>
+    /// </summary>
+    public async Task<CreatedRestaurantResponse> CreateAsync(
+        CreateRestaurantRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        guard.RequirePlatformAdmin();
+        await validation.ValidateAsync(request, ct);
+
+        var slug = await ResolveSlugAsync(request, ct);
+        var restaurantId = Guid.NewGuid();
+
+        db.Restaurants.Add(new Domain.Restaurants.Restaurant
+        {
+            Id = restaurantId,
+            Name = request.Name.Trim(),
+            Slug = slug,
+            Description = null,
+            Phone = request.Phone.Trim(),
+
+            // Hidden until its owner has set it up and the platform has looked at it.
+            IsActive = false,
+
+            // The restaurant's own switch starts on: it is the kitchen's to pause, and starting
+            // it paused would leave an owner wondering which of two switches was the problem.
+            IsAcceptingOrders = true,
+
+            CommissionPercent = request.CommissionPercent,
+            MinOrderUsd = 0m,
+            DefaultPrepMinutes = DefaultPrepMinutes,
+            CreatedAt = clock.UtcNow,
+        });
+
+        await db.SaveChangesAsync(ct);
+
+        // allowExistingMembership stays false: an owner who already runs another restaurant
+        // cannot run this one, for the same reason they cannot be invited to a second — a token
+        // carries one restaurant and nothing lets its holder choose.
+        var (_, emailed) = await invitations.InviteAsync(
+            restaurantId,
+            request.OwnerEmail,
+            request.OwnerFullName,
+            request.OwnerPhone,
+            StaffRoleType.Owner,
+            ct: ct);
+
+        return new CreatedRestaurantResponse(await SingleAsync(restaurantId, ct), emailed);
+    }
+
+    /// <summary>What a new restaurant promises until its owner says otherwise.</summary>
+    private const int DefaultPrepMinutes = 20;
+
+    /// <summary>
+    /// The link this restaurant will live at.
+    ///
+    /// <para>
+    /// A collision is refused rather than resolved with a suffix. "beirut-mezze-house-2" is a link
+    /// somebody has to live with forever, chosen by a computer in a moment nobody was watching —
+    /// an admin told the name is taken can pick something they meant.
+    /// </para>
+    /// </summary>
+    private async Task<string> ResolveSlugAsync(CreateRestaurantRequest request, CancellationToken ct)
+    {
+        var slug = string.IsNullOrWhiteSpace(request.Slug)
+            ? Slugs.From(request.Name, MaxSlugLength)
+            : request.Slug.Trim();
+
+        if (slug.Length == 0)
+        {
+            // A name with no Latin letters in it — Arabic, most obviously. Nothing sensible can be
+            // derived, and inventing one would saddle the restaurant with a link it never chose.
+            throw new ConflictException(
+                "A link could not be made from that name. Type the one this restaurant should use.");
+        }
+
+        if (await db.Restaurants.AnyAsync(r => r.Slug == slug, ct))
+        {
+            throw new ConflictException($"Another restaurant is already at /{slug}. Choose a different link.");
+        }
+
+        return slug;
+    }
+
+
     /// <summary>
     /// Every restaurant, listed or not.
     ///

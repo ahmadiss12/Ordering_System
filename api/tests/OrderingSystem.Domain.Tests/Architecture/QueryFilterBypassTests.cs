@@ -26,9 +26,11 @@ public class QueryFilterBypassTests
          "Reads RestaurantStaff to decide what the tenant IS. Filtering it would ask a question "
          + "that can only be answered after it has been answered."),
 
-        ("RestaurantStaffService.cs",
+        ("StaffInvitations.cs",
          "Asks whether an invitee already works somewhere else, which is by definition a row at "
-         + "another restaurant and so invisible through the filter. The query is an AnyAsync "
+         + "another restaurant and so invisible through the filter. Also reads the caller's own "
+         + "restaurant when the platform is appointing a brand-new restaurant's first owner, "
+         + "where the caller has no restaurant claim at all. Both queries are an AnyAsync "
          + "returning a bool - no other tenant's data is read, projected or returned."),
     ];
 

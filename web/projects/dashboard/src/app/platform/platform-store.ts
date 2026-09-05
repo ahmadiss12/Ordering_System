@@ -1,5 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { PlatformRestaurantResponse, PlatformRestaurantsClient, describeError } from 'api-client';
+import {
+  CreateRestaurantRequest,
+  CreatedRestaurantResponse,
+  PlatformRestaurantResponse,
+  PlatformRestaurantsClient,
+  describeError,
+} from 'api-client';
 import { firstValueFrom } from 'rxjs';
 
 /**
@@ -24,11 +30,25 @@ export class PlatformStore {
 
   /** Which restaurant is mid-request, so only its own controls are disabled. */
   readonly busy = signal<string | null>(null);
+  readonly creating = signal(false);
+
+  /**
+   * The restaurant just taken on, and whether its owner was actually emailed.
+   *
+   * Three outcomes, as with a staff invitation: a link was sent, the address already had an
+   * account so there was none to send, or there was one and the mail failed. An admin who was
+   * told a link went out will not chase one that did not.
+   */
+  readonly created = signal<CreatedRestaurantResponse | null>(null);
 
   readonly hiddenCount = computed(() => this.rowsSignal().filter((r) => !r.isActive).length);
 
   async load(): Promise<void> {
     this.loading.set(true);
+
+    // Asking the server for the truth clears what the screen was still saying about the last
+    // thing somebody did, so a confirmation cannot outlive an explicit refresh.
+    this.created.set(null);
 
     try {
       this.rowsSignal.set(await firstValueFrom(this.client.list()));
@@ -38,6 +58,27 @@ export class PlatformStore {
       this.error.set(describeError(error, 'Could not load the platform list.'));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async create(request: CreateRestaurantRequest): Promise<boolean> {
+    this.creating.set(true);
+    this.error.set(null);
+    this.created.set(null);
+
+    try {
+      const created = await firstValueFrom(this.client.create(request));
+
+      await this.load();
+
+      // Set after the reload, because load() clears it.
+      this.created.set(created);
+      return true;
+    } catch (error) {
+      this.error.set(describeError(error, `Could not take ${request.name} on.`));
+      return false;
+    } finally {
+      this.creating.set(false);
     }
   }
 
@@ -67,6 +108,7 @@ export class PlatformStore {
   ): Promise<boolean> {
     this.busy.set(row.id);
     this.error.set(null);
+    this.created.set(null);
 
     try {
       await request();

@@ -1,4 +1,5 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -36,6 +37,7 @@ const MAX_COMMISSION_PERCENT = 50;
   providers: [PlatformStore],
   imports: [
     FormsModule,
+    ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,
     MatDialogModule,
@@ -50,15 +52,72 @@ const MAX_COMMISSION_PERCENT = 50;
 })
 export class Platform {
   private readonly dialog = inject(MatDialog);
+  private readonly builder = inject(FormBuilder);
 
   protected readonly store = inject(PlatformStore);
   protected readonly maxCommission = MAX_COMMISSION_PERCENT;
+
+  /** Whether the "take a restaurant on" form is open. Shut by default: it is a rare act. */
+  protected readonly adding = signal(false);
+
+  protected readonly form = this.builder.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(200)]],
+    // Optional, and derived from the name when left alone — which is what somebody typing a
+    // restaurant's name usually wants, rather than being made to invent a URL.
+    slug: ['', [Validators.maxLength(120), Validators.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/)]],
+    phone: ['', [Validators.required, Validators.maxLength(32)]],
+    commissionPercent: [
+      15,
+      [Validators.required, Validators.min(0), Validators.max(MAX_COMMISSION_PERCENT)],
+    ],
+    ownerEmail: ['', [Validators.required, Validators.email, Validators.maxLength(256)]],
+    ownerFullName: ['', [Validators.required, Validators.maxLength(200)]],
+    ownerPhone: ['', Validators.maxLength(32)],
+  });
+
+  /** What the link will be if nothing is typed into the slug box, shown live under the name. */
+  protected readonly derivedSlug = signal('');
 
   /** What has been typed into each rate box, until it is saved or abandoned. */
   private readonly typed = new Map<string, number>();
 
   constructor() {
     void this.store.load();
+
+    // Shown rather than explained: somebody typing "Café Beirut & Sons" can see it will live at
+    // /cafe-beirut-sons before they commit to it, and type their own if they would rather not.
+    effect(() => {
+      const name = this.form.controls.name.value;
+      this.derivedSlug.set(slugFrom(name));
+    });
+
+    this.form.controls.name.valueChanges.subscribe((name) =>
+      this.derivedSlug.set(slugFrom(name ?? '')),
+    );
+  }
+
+  protected async takeOn(): Promise<void> {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const value = this.form.getRawValue();
+
+    const created = await this.store.create({
+      name: value.name.trim(),
+      slug: value.slug.trim() || null,
+      phone: value.phone.trim(),
+      commissionPercent: value.commissionPercent,
+      ownerEmail: value.ownerEmail.trim(),
+      ownerFullName: value.ownerFullName.trim(),
+      ownerPhone: value.ownerPhone.trim() || null,
+    });
+
+    if (created) {
+      this.form.reset({ commissionPercent: 15 });
+      this.adding.set(false);
+    }
   }
 
   protected rate(row: PlatformRestaurantResponse): number {
@@ -136,4 +195,21 @@ export class Platform {
     // Dismissing the dialog resolves undefined, which is not a yes.
     return answer === true;
   }
+}
+
+/**
+ * The same rules the server applies, so the preview under the name box is what will actually be
+ * saved rather than an optimistic guess.
+ *
+ * Kept deliberately small: it only has to agree with the server for names an admin is likely to
+ * type, and the server is the one that decides — a name it cannot make a link from is refused
+ * there with a message asking for one.
+ */
+function slugFrom(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

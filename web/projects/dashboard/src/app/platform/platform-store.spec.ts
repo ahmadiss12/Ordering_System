@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { PlatformRestaurantResponse, PlatformRestaurantsClient } from 'api-client';
+import {
+  CreateRestaurantRequest,
+  CreatedRestaurantResponse,
+  PlatformRestaurantResponse,
+  PlatformRestaurantsClient,
+} from 'api-client';
 import { Observable, of, throwError } from 'rxjs';
 import { PlatformStore } from './platform-store';
 
@@ -82,6 +87,69 @@ describe('PlatformStore', () => {
     expect(store.rows()[0].commissionPercent).toBe(15);
   });
 
+  it('says whether the new owner was actually emailed', async () => {
+    client.returns([]);
+    const store = await loaded();
+
+    client.creates(restaurant('c', 'Zaatar Express', { isActive: false }), true);
+    client.returns([restaurant('c', 'Zaatar Express', { isActive: false })]);
+    await store.create(newRestaurant('Zaatar Express'));
+
+    expect(store.created()?.invitationEmailed).toBe(true);
+    expect(store.created()?.restaurant.isActive).toBe(false);
+  });
+
+  it('does not claim to have emailed an owner the mail server refused', async () => {
+    client.returns([]);
+    const store = await loaded();
+
+    // The restaurant exists either way — the server reports this as a success on purpose — so
+    // the screen is the only place it can be said.
+    client.creates(restaurant('c', 'Falafel Lane', { isActive: false }), false);
+    client.returns([restaurant('c', 'Falafel Lane', { isActive: false })]);
+    await store.create(newRestaurant('Falafel Lane'));
+
+    expect(store.created()?.invitationEmailed).toBe(false);
+  });
+
+  it('keeps the confirmation through the reload that follows it', async () => {
+    client.returns([]);
+    const store = await loaded();
+
+    client.creates(restaurant('c', 'Manoushe House', { isActive: false }), true);
+    client.returns([restaurant('c', 'Manoushe House', { isActive: false })]);
+    await store.create(newRestaurant('Manoushe House'));
+
+    // load() clears it, so it has to be set afterwards — the same ordering the staff list needs
+    // and for the same reason.
+    expect(store.created()).not.toBeNull();
+  });
+
+  it('clears the confirmation once something else happens', async () => {
+    client.returns([restaurant('a', 'One')]);
+    const store = await loaded();
+
+    client.creates(restaurant('c', 'Two', { isActive: false }), true);
+    await store.create(newRestaurant('Two'));
+
+    client.returns([restaurant('a', 'One', { isActive: false })]);
+    await store.setListing(store.rows()[0], false);
+
+    // Otherwise "X is on the platform" sits above a list somebody has since edited.
+    expect(store.created()).toBeNull();
+  });
+
+  it('names the restaurant a failed creation was about', async () => {
+    client.returns([]);
+    const store = await loaded();
+
+    client.fails();
+    await store.create(newRestaurant('Zaatar Express'));
+
+    expect(store.error()).toContain('Zaatar Express');
+    expect(store.created()).toBeNull();
+  });
+
   it('does not pretend to have a list it could not load', async () => {
     client.fails();
     const store = TestBed.inject(PlatformStore);
@@ -98,6 +166,18 @@ describe('PlatformStore', () => {
     return store;
   }
 });
+
+function newRestaurant(name: string): CreateRestaurantRequest {
+  return {
+    name,
+    slug: null,
+    phone: '+96170000000',
+    commissionPercent: 15,
+    ownerEmail: 'owner@example.test',
+    ownerFullName: 'New Owner',
+    ownerPhone: null,
+  };
+}
 
 function restaurant(
   id: string,
@@ -121,6 +201,7 @@ function restaurant(
 class FakePlatformClient {
   private restaurants: PlatformRestaurantResponse[] = [];
   private writeResponse: PlatformRestaurantResponse | null = null;
+  private createResponse: CreatedRestaurantResponse | null = null;
   private failing = false;
 
   /** What a subsequent list() answers. */
@@ -139,8 +220,16 @@ class FakePlatformClient {
     this.writeResponse = row;
   }
 
+  creates(restaurant: PlatformRestaurantResponse, invitationEmailed: boolean): void {
+    this.createResponse = { restaurant, invitationEmailed } as CreatedRestaurantResponse;
+  }
+
   fails(): void {
     this.failing = true;
+  }
+
+  create(): Observable<CreatedRestaurantResponse> {
+    return this.failing ? this.broken() : of(this.createResponse!);
   }
 
   list(): Observable<PlatformRestaurantResponse[]> {

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using OrderingSystem.Api.IntegrationTests.Auth;
 using OrderingSystem.Api.IntegrationTests.Persistence;
@@ -32,6 +33,184 @@ public sealed class PlatformRestaurantsTests(ApiFactory factory) : IClassFixture
 
     private const string Admin = "admin@ordering.test";
     private const string Slug = "shawarma-station";
+
+    // ------------------------------------------------------------------ taking one on
+
+    [Fact]
+    public async Task A_new_restaurant_arrives_hidden_with_nothing_set_up()
+    {
+        var admin = await SignInAsync(Admin);
+        var name = Unique("Zaatar Express");
+
+        try
+        {
+            var created = await CreateAsync(admin, name);
+
+            // Exactly the state its owner has to configure their way out of. The platform
+            // guessing at hours or a delivery area would be worse than an empty screen, and a
+            // restaurant visible to customers before either exists would take orders it cannot
+            // cook or carry.
+            created.Restaurant.IsActive.ShouldBeFalse();
+            created.Restaurant.LiveOrderCount.ShouldBe(0);
+
+            var (hours, zones, items) = await ConfigurationCountsAsync(created.Restaurant.Slug);
+            hours.ShouldBe(0);
+            zones.ShouldBe(0);
+            items.ShouldBe(0);
+
+            // The kitchen's own switch starts on. Starting it paused would leave an owner
+            // hunting for which of two switches was keeping them shut.
+            created.Restaurant.IsAcceptingOrders.ShouldBeTrue();
+        }
+        finally
+        {
+            await ForgetRestaurantAsync(name);
+        }
+    }
+
+    [Fact]
+    public async Task A_new_restaurant_gets_an_owner_who_can_sign_in_and_configure_it()
+    {
+        var admin = await SignInAsync(Admin);
+        var name = Unique("Manoushe House");
+        var ownerEmail = $"owner-{Guid.NewGuid():N}@example.test";
+
+        try
+        {
+            var created = await CreateAsync(admin, name, ownerEmail);
+            created.InvitationEmailed.ShouldBeTrue();
+
+            // The whole point of creating it: somebody can now set it up. Following the emailed
+            // link the way they would.
+            var owner = await AcceptInvitationAsync(ownerEmail);
+
+            (await owner.GetAsync("/api/restaurant/hours", Ct)).StatusCode.ShouldBe(HttpStatusCode.OK);
+            (await owner.GetAsync("/api/restaurant/staff", Ct)).StatusCode
+                .ShouldBe(HttpStatusCode.OK, "the first owner has to be able to hire");
+        }
+        finally
+        {
+            await ForgetRestaurantAsync(name);
+            await ForgetUserAsync(ownerEmail);
+        }
+    }
+
+    [Fact]
+    public async Task A_new_restaurant_is_invisible_to_customers_until_it_is_listed()
+    {
+        var admin = await SignInAsync(Admin);
+        var name = Unique("Falafel Lane");
+        var anonymous = factory.CreateClient();
+
+        try
+        {
+            var created = await CreateAsync(admin, name);
+
+            (await anonymous.GetAsync($"/api/restaurants/{created.Restaurant.Slug}", Ct)).StatusCode
+                .ShouldBe(HttpStatusCode.NotFound);
+
+            // ...and visible the moment the platform says so, which is the other half of the
+            // switch meaning anything.
+            await SetListingAsync(admin, created.Restaurant.Id, true);
+
+            (await anonymous.GetAsync($"/api/restaurants/{created.Restaurant.Slug}", Ct)).StatusCode
+                .ShouldBe(HttpStatusCode.OK);
+        }
+        finally
+        {
+            await ForgetRestaurantAsync(name);
+        }
+    }
+
+    [Fact]
+    public async Task A_link_is_made_from_the_name_when_none_is_given()
+    {
+        var admin = await SignInAsync(Admin);
+        var name = Unique("Café  Beirut & Sons");
+
+        try
+        {
+            var created = await CreateAsync(admin, name);
+
+            // Accents dropped, punctuation and doubled spaces collapsed to single hyphens. An
+            // address bar reading "caf%C3%A9--beirut-&-sons" is nobody's idea of a tidy link.
+            created.Restaurant.Slug.ShouldStartWith("cafe-beirut-sons-");
+            created.Restaurant.Slug.ShouldMatch("^[a-z0-9]+(-[a-z0-9]+)*$");
+        }
+        finally
+        {
+            await ForgetRestaurantAsync(name);
+        }
+    }
+
+    [Fact]
+    public async Task A_link_that_is_already_taken_is_refused_rather_than_numbered()
+    {
+        var admin = await SignInAsync(Admin);
+
+        var response = await admin.PostAsJsonAsync("/api/platform/restaurants",
+            NewRestaurant("Shawarma Station Two", slug: Slug), Ct);
+
+        // Not "shawarma-station-2". That is a link somebody has to live with forever, chosen by a
+        // computer in a moment nobody was watching.
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldContain(Slug);
+    }
+
+    [Fact]
+    public async Task A_name_no_link_can_be_made_from_asks_for_one()
+    {
+        var admin = await SignInAsync(Admin);
+
+        // Arabic, which the slug rules cannot turn into anything. Inventing a transliteration
+        // would saddle the restaurant with a link somebody else guessed at.
+        var response = await admin.PostAsJsonAsync("/api/platform/restaurants",
+            NewRestaurant("مطعم الشام"), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldContain("Type the one");
+    }
+
+    [Fact]
+    public async Task An_owner_who_already_runs_a_restaurant_cannot_be_given_a_second()
+    {
+        var admin = await SignInAsync(Admin);
+
+        var response = await admin.PostAsJsonAsync("/api/platform/restaurants",
+            NewRestaurant(Unique("Second Kitchen"), ownerEmail: "owner@frieslab.test"), Ct);
+
+        // Same rule as an ordinary invitation, and for the same reason: a token carries one
+        // restaurant and nothing lets its holder choose which.
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldContain("another restaurant");
+    }
+
+    [Fact]
+    public async Task An_owner_cannot_create_a_restaurant()
+    {
+        var owner = await SignInAsync("owner@shawarma.test");
+
+        var response = await owner.PostAsJsonAsync("/api/platform/restaurants",
+            NewRestaurant(Unique("My Second Place")), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Theory]
+    [InlineData("", "no name")]
+    [InlineData("Fine Name", "a link with spaces in it")]
+    public async Task A_restaurant_that_could_not_work_is_refused(string name, string why)
+    {
+        var admin = await SignInAsync(Admin);
+
+        var request = why == "no name"
+            ? NewRestaurant(name)
+            : NewRestaurant(name, slug: "not a slug");
+
+        var response = await admin.PostAsJsonAsync("/api/platform/restaurants", request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, why);
+    }
 
     // ------------------------------------------------------------------ who may look
 
@@ -135,7 +314,8 @@ public sealed class PlatformRestaurantsTests(ApiFactory factory) : IClassFixture
         var tenant = TestTenant.Staff(Guid.NewGuid(), restaurantId);
 
         await using var db = factory.CreateDbContext(tenant);
-        var service = new PlatformRestaurantsService(db, new TenantGuard(tenant), new NoValidation());
+        var service = new PlatformRestaurantsService(
+            db, new TenantGuard(tenant), new NoValidation(), null!, null!);
 
         // Their own restaurant's id, which is exactly what would slip past the usual guard.
         await Should.ThrowAsync<ForbiddenException>(
@@ -172,7 +352,8 @@ public sealed class PlatformRestaurantsTests(ApiFactory factory) : IClassFixture
         var tenant = TestTenant.PlatformAdmin();
 
         await using var db = factory.CreateDbContext(tenant);
-        var service = new PlatformRestaurantsService(db, new TenantGuard(tenant), new NoValidation());
+        var service = new PlatformRestaurantsService(
+            db, new TenantGuard(tenant), new NoValidation(), null!, null!);
 
         // The other half, so the test above cannot be passing because the service refuses
         // everybody.
@@ -490,12 +671,12 @@ public sealed class PlatformRestaurantsTests(ApiFactory factory) : IClassFixture
             new AddCartLineRequest(itemId, 2, null, choices), Ct));
     }
 
-    private async Task<HttpClient> SignInAsync(string email)
+    private async Task<HttpClient> SignInAsync(string email, string? password = null)
     {
         var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/auth/login",
-            new LoginRequest(email, DatabaseSeeder.SeedPassword), Ct);
+            new LoginRequest(email, password ?? DatabaseSeeder.SeedPassword), Ct);
         await EnsureSucceededAsync(response);
 
         var tokens = await response.Content.ReadFromJsonAsync<AuthTokensResponse>(Ct);
@@ -520,11 +701,112 @@ public sealed class PlatformRestaurantsTests(ApiFactory factory) : IClassFixture
     /// <summary>
     /// Validation is not what those two tests are about, and wiring FluentValidation up by hand
     /// would only add a way for them to fail for an unrelated reason.
+    ///
+    /// <para>
+    /// The clock and the invitation machinery are passed as null for a related but sharper
+    /// reason: the guard has to throw before either is touched. If it ever stopped doing so, the
+    /// test fails on a null reference rather than quietly passing — which is the outcome wanted
+    /// from a check whose whole job is to run first.
+    /// </para>
     /// </summary>
     private sealed class NoValidation : IValidationService
     {
         public Task ValidateAsync<T>(T instance, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+    }
+
+    /// <summary>A name no other run will collide with, since these tests share one database.</summary>
+    private static string Unique(string prefix) => $"{prefix} {Guid.NewGuid():N}"[..28];
+
+    private static CreateRestaurantRequest NewRestaurant(
+        string name, string? slug = null, string? ownerEmail = null) =>
+        new(
+            name,
+            slug,
+            "+96170123456",
+            15m,
+            ownerEmail ?? $"owner-{Guid.NewGuid():N}@example.test",
+            "New Owner",
+            null);
+
+    private static async Task<CreatedRestaurantResponse> CreateAsync(
+        HttpClient admin, string name, string? ownerEmail = null)
+    {
+        var response = await admin.PostAsJsonAsync("/api/platform/restaurants",
+            NewRestaurant(name, ownerEmail: ownerEmail), Ct);
+
+        await EnsureSucceededAsync(response);
+        return (await response.Content.ReadFromJsonAsync<CreatedRestaurantResponse>(Ct))!;
+    }
+
+    private async Task<(int Hours, int Zones, int Items)> ConfigurationCountsAsync(string slug)
+    {
+        await using var db = factory.CreateDbContext(TestTenant.PlatformAdmin());
+
+        return await db.Restaurants
+            .Where(r => r.Slug == slug)
+            .Select(r => new ValueTuple<int, int, int>(r.Hours.Count, r.Zones.Count, r.MenuItems.Count))
+            .FirstAsync(Ct);
+    }
+
+    /// <summary>Follows the emailed link, chooses a password, and signs in with it.</summary>
+    private async Task<HttpClient> AcceptInvitationAsync(string email)
+    {
+        var body = factory.Emails.Sent.Last(m => m.To == email).Body;
+        var match = Regex.Match(body, @"token=([A-Za-z0-9_\-%]+)", RegexOptions.None, TimeSpan.FromSeconds(1));
+        match.Success.ShouldBeTrue("the invitation must carry a link");
+
+        await EnsureSucceededAsync(await factory.CreateClient().PostAsJsonAsync("/api/auth/reset-password",
+            new ResetPasswordRequest(Uri.UnescapeDataString(match.Groups[1].Value), "Chosen-Passw0rd"), Ct));
+
+        return await SignInAsync(email, "Chosen-Passw0rd");
+    }
+
+    /// <summary>
+    /// Removes a restaurant a test created, straight from the database.
+    ///
+    /// <para>
+    /// There is no way to delete one through the product, deliberately — a restaurant with orders
+    /// against it must keep resolving them. These have none, and leaving them would grow the
+    /// platform list every run and change what the tests above are counting.
+    /// </para>
+    /// </summary>
+    private async Task ForgetRestaurantAsync(string name)
+    {
+        await using var db = factory.CreateDbContext(TestTenant.PlatformAdmin());
+
+        var ids = await db.Restaurants.Where(r => r.Name == name).Select(r => r.Id).ToListAsync(Ct);
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        var staff = await db.RestaurantStaff.IgnoreQueryFilters()
+            .Where(s => ids.Contains(s.RestaurantId))
+            .Select(s => s.UserId)
+            .ToListAsync(Ct);
+
+        await db.RestaurantStaff.IgnoreQueryFilters()
+            .Where(s => ids.Contains(s.RestaurantId)).ExecuteDeleteAsync(Ct);
+        await db.Restaurants.Where(r => ids.Contains(r.Id)).ExecuteDeleteAsync(Ct);
+
+        foreach (var userId in staff)
+        {
+            await db.UserRoles.Where(r => r.UserId == userId).ExecuteDeleteAsync(Ct);
+            await db.RefreshTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync(Ct);
+            await db.PasswordResetTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync(Ct);
+
+            if (!await db.Orders.IgnoreQueryFilters().AnyAsync(o => o.CustomerId == userId, Ct))
+            {
+                await db.Users.Where(u => u.Id == userId).ExecuteDeleteAsync(Ct);
+            }
+        }
+    }
+
+    private async Task ForgetUserAsync(string email)
+    {
+        await using var db = factory.CreateDbContext(TestTenant.PlatformAdmin());
+        await db.Users.Where(u => u.Email == email).ExecuteDeleteAsync(Ct);
     }
 
     private sealed record PagedRestaurants(List<CatalogRow> Items);

@@ -19,3 +19,31 @@ public sealed class SetCommissionRequestValidator : AbstractValidator<SetCommiss
             .Must(percent => decimal.Round(percent, 2) == percent)
             .WithMessage("Commission is stored to two decimal places.");
 }
+
+public sealed class CreateRestaurantRequestValidator : AbstractValidator<CreateRestaurantRequest>
+{
+    public CreateRestaurantRequestValidator()
+    {
+        RuleFor(r => r.Name).NotEmpty().MaximumLength(200);
+        RuleFor(r => r.Phone).NotEmpty().MaximumLength(32);
+
+        RuleFor(r => r.OwnerEmail).NotEmpty().EmailAddress().MaximumLength(256);
+        RuleFor(r => r.OwnerFullName).NotEmpty().MaximumLength(200);
+        RuleFor(r => r.OwnerPhone).MaximumLength(32);
+
+        RuleFor(r => r.CommissionPercent)
+            .InclusiveBetween(0m, SetCommissionRequestValidator.MaxCommissionPercent)
+            .WithMessage(
+                $"Commission must be between 0% and {SetCommissionRequestValidator.MaxCommissionPercent}%.");
+
+        // Only when one was typed. Left out, the service derives it and is the one responsible for
+        // producing something valid — validating a value the caller never supplied would refuse
+        // the request they actually made.
+        When(r => !string.IsNullOrWhiteSpace(r.Slug), () =>
+            RuleFor(r => r.Slug!)
+                .MaximumLength(120)
+                .Matches("^[a-z0-9]+(-[a-z0-9]+)*$")
+                .WithMessage(
+                    "A link can hold lowercase letters, numbers and single hyphens between them."));
+    }
+}

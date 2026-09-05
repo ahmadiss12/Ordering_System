@@ -1299,6 +1299,114 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "PlatformRestaurants"
+        ],
+        "operationId": "PlatformRestaurants_Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRestaurantRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRestaurantRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRestaurantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedRestaurantResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedRestaurantResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedRestaurantResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/platform/restaurants/{restaurantId}/commission": {
@@ -4234,6 +4342,21 @@
           }
         }
       },
+      "CreatedRestaurantResponse": {
+        "required": [
+          "restaurant",
+          "invitationEmailed"
+        ],
+        "type": "object",
+        "properties": {
+          "restaurant": {
+            "$ref": "#/components/schemas/PlatformRestaurantResponse"
+          },
+          "invitationEmailed": {
+            "type": "boolean"
+          }
+        }
+      },
       "CreateMenuItemRequest": {
         "required": [
           "categoryId",
@@ -4349,6 +4472,52 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "CreateRestaurantRequest": {
+        "required": [
+          "name",
+          "slug",
+          "phone",
+          "commissionPercent",
+          "ownerEmail",
+          "ownerFullName",
+          "ownerPhone"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": "string"
+          },
+          "commissionPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "ownerEmail": {
+            "type": "string"
+          },
+          "ownerFullName": {
+            "type": "string"
+          },
+          "ownerPhone": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

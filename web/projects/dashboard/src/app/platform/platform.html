@@ -7,6 +7,127 @@
   </p>
 </header>
 
+<div class="take-on">
+  @if (!adding()) {
+    <button matButton="filled" (click)="adding.set(true)">
+      <mat-icon>add_business</mat-icon>
+      Take a restaurant on
+    </button>
+  }
+</div>
+
+@if (store.created(); as created) {
+  <mat-card appearance="outlined" class="created">
+    <mat-card-content>
+      <mat-icon>check_circle</mat-icon>
+      <div>
+        <p class="heading">{{ created.restaurant.name }} is on the platform.</p>
+        <p class="muted">
+          It is hidden until its owner has set it up &mdash; there are no hours, no delivery area
+          and no menu yet, and those are theirs to decide.
+          @if (created.invitationEmailed) {
+            They have been emailed a link to choose a password.
+          } @else {
+            <strong> The invitation could not be emailed. </strong>
+            Their account exists; they will need the link sent another way.
+          }
+        </p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+}
+
+@if (adding()) {
+  <mat-card appearance="outlined" class="new-restaurant">
+    <mat-card-content>
+      <form [formGroup]="form" (ngSubmit)="takeOn()">
+        <h2>Take a restaurant on</h2>
+        <p class="muted">
+          It arrives hidden, with nothing set up. Its owner is emailed a link and does the rest
+          &mdash; the hours, the delivery area, the menu.
+        </p>
+
+        <h3>The restaurant</h3>
+        <div class="fields">
+          <mat-form-field appearance="outline">
+            <mat-label>Name</mat-label>
+            <input matInput formControlName="name" autocomplete="off" />
+            @if (derivedSlug() && !form.controls.slug.value) {
+              <mat-hint>Customers will find it at /{{ derivedSlug() }}</mat-hint>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Link (optional)</mat-label>
+            <input
+              matInput
+              formControlName="slug"
+              autocomplete="off"
+              placeholder="{{ derivedSlug() }}"
+            />
+            @if (form.controls.slug.hasError('pattern')) {
+              <mat-error>Lowercase letters, numbers and single hyphens.</mat-error>
+            } @else {
+              <mat-hint>Leave empty to use the name.</mat-hint>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Phone</mat-label>
+            <input matInput formControlName="phone" autocomplete="off" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Commission</mat-label>
+            <input
+              matInput
+              type="number"
+              min="0"
+              [max]="maxCommission"
+              step="0.25"
+              formControlName="commissionPercent"
+            />
+            <span matTextSuffix>%</span>
+          </mat-form-field>
+        </div>
+
+        <h3>Who will run it</h3>
+        <p class="muted">
+          They get an owner's account. An address that already orders here keeps the account and the
+          history it has.
+        </p>
+
+        <div class="fields">
+          <mat-form-field appearance="outline">
+            <mat-label>Owner's email</mat-label>
+            <input matInput type="email" formControlName="ownerEmail" autocomplete="off" />
+            @if (form.controls.ownerEmail.hasError('email') && form.controls.ownerEmail.touched) {
+              <mat-error>That does not look like an email address.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Owner's name</mat-label>
+            <input matInput formControlName="ownerFullName" autocomplete="off" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Owner's phone (optional)</mat-label>
+            <input matInput formControlName="ownerPhone" autocomplete="off" />
+          </mat-form-field>
+        </div>
+
+        <div class="submit">
+          <button matButton type="button" (click)="adding.set(false)">Cancel</button>
+          <button matButton="filled" type="submit" [disabled]="store.creating()">
+            Take them on
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+}
+
 @if (store.loading()) {
   <mat-progress-bar mode="indeterminate" />
 }
