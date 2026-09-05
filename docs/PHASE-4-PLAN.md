@@ -309,7 +309,7 @@ Named rather than quietly dropped.
 
 | | |
 |---|---|
-| **A restaurant cannot be created through the product.** Only the seeder makes one. A platform admin can list, hide and price a restaurant, but the row itself has to exist already — so onboarding still starts with a database insert. |
+| ~~**A restaurant cannot be created through the product.**~~ Closed after the phase: `POST /api/platform/restaurants` takes one on, hidden and unconfigured, and invites its first owner through the same path a colleague is invited by. |
 | **Nothing records who changed a commission rate, or when.** For a field that decides what a restaurant is paid, an audit trail is the obvious next thing; it needs a table rather than a corner of a step. |
 | **An invitation cannot be re-sent.** The recovery path is to remove the person and invite them again, which issues a fresh link and is tested — but it is a workaround wearing the shape of a feature. |
 | **One person, one restaurant.** The composite key allows two memberships; an access token carries one `restaurant_id` and nothing lets its holder choose. Invitations refuse the second rather than let the database decide. Switching between restaurants is its own feature. |
