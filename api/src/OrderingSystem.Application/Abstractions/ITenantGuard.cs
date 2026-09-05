@@ -21,4 +21,16 @@ public interface ITenantGuard
 
     /// <summary>The signed-in user, or a 401 if nobody is.</summary>
     Guid RequireUserId();
+
+    /// <summary>
+    /// Throws unless the caller runs the platform rather than a restaurant.
+    ///
+    /// <para>
+    /// Separate from <see cref="EnsureCanActFor"/> because that one admits a restaurant acting on
+    /// itself, which is right for a menu and wrong for a commission rate: an owner calling the
+    /// platform endpoints with their own restaurant's id would pass it. What a restaurant is
+    /// charged, and whether it is listed at all, are the platform's to set and nobody else's.
+    /// </para>
+    /// </summary>
+    void RequirePlatformAdmin();
 }

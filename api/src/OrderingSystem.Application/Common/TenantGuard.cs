@@ -32,4 +32,12 @@ public sealed class TenantGuard(ITenantContext tenant) : ITenantGuard
     public Guid RequireUserId() =>
         tenant.UserId
         ?? throw new AuthenticationFailedException("This action requires you to be signed in.");
+
+    public void RequirePlatformAdmin()
+    {
+        if (!tenant.IsPlatformAdmin)
+        {
+            throw new ForbiddenException("Only the platform can change this.");
+        }
+    }
 }

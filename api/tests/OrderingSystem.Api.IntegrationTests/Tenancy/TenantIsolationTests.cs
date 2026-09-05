@@ -162,6 +162,22 @@ public sealed class TenantIsolationTests(TwoRestaurantScenario scenario)
     }
 
     [Fact]
+    public void Only_a_platform_admin_passes_the_platform_check()
+    {
+        // A separate check from EnsureCanActFor, and this is why: an owner passes that one for
+        // their own restaurant, which is right for a menu and wrong for the commission rate the
+        // platform charges them.
+        Should.Throw<ForbiddenException>(
+            () => GuardFor(TestTenant.Staff(scenario.StaffA, scenario.RestaurantA)).RequirePlatformAdmin());
+        Should.Throw<ForbiddenException>(
+            () => GuardFor(TestTenant.Customer(scenario.CustomerA)).RequirePlatformAdmin());
+        Should.Throw<ForbiddenException>(
+            () => GuardFor(TestTenant.Anonymous).RequirePlatformAdmin());
+
+        Should.NotThrow(() => GuardFor(TestTenant.PlatformAdmin()).RequirePlatformAdmin());
+    }
+
+    [Fact]
     public void A_platform_admin_may_act_for_any_restaurant()
     {
         var guard = GuardFor(TestTenant.PlatformAdmin());
