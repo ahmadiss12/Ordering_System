@@ -2,10 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Storefront</title>
+    <title>Order food</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+    <!--
+      Roboto and the Material Icons font are bundled by styles.scss rather than fetched from
+      Google's CDN, for the reasons the dashboard's index.html gives — and more so here. This is
+      the screen a customer opens on a phone on a connection that is regularly slow, and it is
+      the one where a cross-origin round trip before first paint is most visible.
+    -->
   </head>
   <body>
     <app-root></app-root>

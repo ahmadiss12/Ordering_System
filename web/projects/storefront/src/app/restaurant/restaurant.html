@@ -1,0 +1,157 @@
+<div class="page">
+  <a routerLink="/" class="back">
+    <mat-icon>arrow_back</mat-icon>
+    All restaurants
+  </a>
+
+  @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (store.notFound()) {
+    <mat-card appearance="outlined" class="gone">
+      <mat-card-content>
+        <mat-icon>search_off</mat-icon>
+        <p class="heading">This restaurant is not here.</p>
+        <!-- Not "try again": the link is wrong or the restaurant has gone, and neither is fixed
+             by asking a second time. -->
+        <p class="muted">
+          The link may be out of date, or the restaurant may have left the platform.
+        </p>
+        <a matButton="filled" routerLink="/">See what else there is</a>
+      </mat-card-content>
+    </mat-card>
+  } @else if (store.error(); as message) {
+    <mat-card appearance="outlined" class="failed">
+      <mat-card-content>
+        <mat-icon>wifi_off</mat-icon>
+        <div>
+          <p class="heading">{{ message }}</p>
+          <p class="muted">Check your connection and try again.</p>
+        </div>
+        <button matButton (click)="store.load(slug())">Try again</button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (store.loaded() && store.detail(); as restaurant) {
+    <header class="head">
+      <div class="who">
+        <h1>{{ restaurant.name }}</h1>
+        @if (restaurant.description) {
+          <p class="muted">{{ restaurant.description }}</p>
+        }
+      </div>
+      <span class="badge" [class]="store.availability()">{{ label() }}</span>
+    </header>
+
+    <!-- Said before the menu, not after it. Somebody who cannot be delivered to should find that
+         out before they have chosen dinner, not at checkout. -->
+    <mat-card appearance="outlined" class="facts">
+      <mat-card-content>
+        <div class="fact">
+          <mat-icon>schedule</mat-icon>
+          <div>
+            <span class="label">About</span>
+            <span>{{ restaurant.defaultPrepMinutes }} minutes to cook</span>
+          </div>
+        </div>
+
+        <div class="fact">
+          <mat-icon>shopping_basket</mat-icon>
+          <div>
+            <span class="label">Minimum order</span>
+            <span>
+              {{ restaurant.minOrderUsd > 0 ? money(restaurant.minOrderUsd) : 'None' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="fact">
+          <mat-icon>call</mat-icon>
+          <div>
+            <span class="label">Phone</span>
+            <a [href]="'tel:' + restaurant.phone">{{ restaurant.phone }}</a>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="delivery">
+      <mat-card-content>
+        <h2>Where it delivers</h2>
+
+        @if (restaurant.deliversTo.length) {
+          <ul class="zones">
+            @for (zone of restaurant.deliversTo; track zone.zoneId) {
+              <li>
+                <span class="zone-name">{{ zone.zoneName }}</span>
+                <span class="zone-terms">
+                  {{ zone.deliveryFeeUsd > 0 ? money(zone.deliveryFeeUsd) : 'Free' }}
+                  <span class="dot">&middot;</span>
+                  about {{ zone.estimatedMinutes }} min
+                </span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="muted">
+            This kitchen does not deliver. Orders here are collected from the restaurant.
+          </p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="hours">
+      <mat-card-content>
+        <h2>Opening hours</h2>
+        <dl>
+          @for (day of week; track day.day) {
+            <div class="day">
+              <dt>{{ day.label }}</dt>
+              <dd [class.shut]="!windowsOn(day.day)">{{ windowsOn(day.day) || 'Closed' }}</dd>
+            </div>
+          }
+        </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <h2 class="menu-heading">Menu</h2>
+
+    @if (store.isEmpty()) {
+      <mat-card appearance="outlined" class="empty">
+        <mat-card-content>
+          <mat-icon>restaurant_menu</mat-icon>
+          <p>Nothing on the menu yet.</p>
+          <p class="muted">This kitchen has not added any dishes.</p>
+        </mat-card-content>
+      </mat-card>
+    } @else {
+      @for (category of store.categories(); track category.id) {
+        <section class="section">
+          <h3>{{ category.name }}</h3>
+
+          <ul class="items">
+            @for (item of category.items; track item.id) {
+              <li class="item" [class.gone]="!item.isAvailable">
+                <div class="what">
+                  <p class="name">{{ item.name }}</p>
+                  @if (item.description) {
+                    <p class="muted description">{{ item.description }}</p>
+                  }
+                </div>
+
+                <div class="price">
+                  <span>{{ money(item.basePriceUsd) }}</span>
+                  @if (!item.isAvailable) {
+                    <span class="sold-out">Sold out</span>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    }
+  }
+</div>

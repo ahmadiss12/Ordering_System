@@ -1,0 +1,81 @@
+<div class="page">
+  <header class="intro">
+    <h1>Order food</h1>
+    @if (store.loaded()) {
+      <p class="muted">
+        @if (store.openCount(); as open) {
+          {{ open }} {{ open === 1 ? 'kitchen is' : 'kitchens are' }} taking orders right now.
+        } @else {
+          Nothing is taking orders at the moment. Each one below says when it opens again.
+        }
+      </p>
+    }
+  </header>
+
+  @if (store.loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (store.error(); as message) {
+    <mat-card appearance="outlined" class="failed">
+      <mat-card-content>
+        <mat-icon>wifi_off</mat-icon>
+        <div>
+          <p class="heading">{{ message }}</p>
+          <p class="muted">Check your connection and try again.</p>
+        </div>
+        <button matButton (click)="store.load()">Try again</button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- Nothing is drawn until the list has arrived. An empty page under a spinner that has
+       finished says "there is nowhere to eat", which is a different thing from "we could not
+       ask". -->
+  @if (store.loaded()) {
+    @if (store.isEmpty()) {
+      <mat-card appearance="outlined" class="empty">
+        <mat-card-content>
+          <mat-icon>storefront</mat-icon>
+          <p>No restaurants yet.</p>
+          <p class="muted">There is nowhere to order from on this platform at the moment.</p>
+        </mat-card-content>
+      </mat-card>
+    } @else {
+      <ul class="restaurants">
+        @for (restaurant of store.restaurants(); track restaurant.id) {
+          <li>
+            <!-- Shut restaurants are still links. Somebody looking for the place they had last
+                 week wants its menu and its hours, not a dead card. -->
+            <a
+              class="restaurant"
+              [class.shut]="availability(restaurant) !== 'open'"
+              [routerLink]="['/restaurants', restaurant.slug]"
+            >
+              <div class="who">
+                <h2>{{ restaurant.name }}</h2>
+                @if (restaurant.description) {
+                  <p class="muted description">{{ restaurant.description }}</p>
+                }
+                <p class="facts">
+                  <span>{{ restaurant.defaultPrepMinutes }} min</span>
+                  <span class="dot">&middot;</span>
+                  <span>{{ minimum(restaurant) }}</span>
+                </p>
+              </div>
+
+              <div class="state">
+                <span class="badge" [class]="availability(restaurant)">{{
+                  label(restaurant)
+                }}</span>
+                @if (note(restaurant); as when) {
+                  <span class="muted when">{{ when }}</span>
+                }
+              </div>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>

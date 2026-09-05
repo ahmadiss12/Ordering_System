@@ -4199,6 +4199,27 @@
           }
         }
       },
+      "CatalogOpeningWindow": {
+        "required": [
+          "dayOfWeek",
+          "openTime",
+          "closeTime"
+        ],
+        "type": "object",
+        "properties": {
+          "dayOfWeek": {
+            "$ref": "#/components/schemas/DayOfWeek"
+          },
+          "openTime": {
+            "type": "string",
+            "format": "time"
+          },
+          "closeTime": {
+            "type": "string",
+            "format": "time"
+          }
+        }
+      },
       "CategoryResponse": {
         "required": [
           "id",
@@ -4966,6 +4987,31 @@
           },
           "hasOptions": {
             "type": "boolean"
+          }
+        }
+      },
+      "NextOpening": {
+        "required": [
+          "day",
+          "time",
+          "daysAway"
+        ],
+        "type": "object",
+        "properties": {
+          "day": {
+            "$ref": "#/components/schemas/DayOfWeek"
+          },
+          "time": {
+            "type": "string",
+            "format": "time"
+          },
+          "daysAway": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -6264,7 +6310,7 @@
           "hours": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OpeningWindow"
+              "$ref": "#/components/schemas/CatalogOpeningWindow"
             }
           },
           "deliversTo": {
@@ -6415,7 +6461,8 @@
           "isAcceptingOrders",
           "isOpenNow",
           "deliveryFeeUsd",
-          "estimatedMinutes"
+          "estimatedMinutes",
+          "nextOpening"
         ],
         "type": "object",
         "properties": {
@@ -6480,6 +6527,16 @@
               "string"
             ],
             "format": "int32"
+          },
+          "nextOpening": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NextOpening"
+              }
+            ]
           }
         }
       },

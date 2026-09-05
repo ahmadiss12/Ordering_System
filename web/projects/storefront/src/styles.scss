@@ -1,1 +1,48 @@
-/* You can add global styles to this file, and also import other style files */
+// The storefront's theme. Deliberately the same palette as the dashboard: it is one product, and
+// a customer who is also a restaurant owner should not feel they have changed companies.
+@use '@angular/material' as mat;
+
+// Self-hosted for the same reasons as the dashboard, and more sharply here — this is the screen
+// on a phone on a Lebanese connection, and a menu whose icons are blank squares is not usable.
+@use '@fontsource/roboto/latin-300.css';
+@use '@fontsource/roboto/latin-400.css';
+@use '@fontsource/roboto/latin-500.css';
+@use 'material-icons/iconfont/filled.css';
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+body {
+  color-scheme: light;
+
+  background-color: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  margin: 0;
+  min-height: 100%;
+
+  // A phone in a queue, not a laptop on a counter. Nothing on this side may need a horizontal
+  // scroll to read, so overflow is caught here rather than hunted per screen.
+  overflow-x: hidden;
+}
+
+// One measure for the whole application, so a page cannot quietly choose its own width.
+.page {
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}

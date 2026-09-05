@@ -27,6 +27,38 @@ public sealed class PublicCatalogTests(ApiFactory factory) : IClassFixture<ApiFa
     }
 
     [Fact]
+    public async Task A_shut_kitchen_says_when_it_opens_again()
+    {
+        var wasAt = factory.Clock.LocalTimeOfDay;
+
+        try
+        {
+            // Four in the morning: everything is shut except the one seeded around the clock.
+            factory.Clock.LocalTimeOfDay = new TimeOnly(4, 0);
+
+            var page = await Anonymous.GetFromJsonAsync<PagedResult<RestaurantSummary>>(
+                "/api/restaurants", Ct);
+
+            var shut = page!.Items.Where(r => !r.IsOpenNow).ToList();
+            shut.ShouldNotBeEmpty("the seeded restaurants are not all open at four in the morning");
+
+            // "Closed" on its own makes somebody browsing early guess which of several shut
+            // restaurants is worth waiting for. The hours are already loaded to decide it is
+            // shut at all, so saying when costs a walk over the same list.
+            shut.ShouldAllBe(r => r.NextOpening != null);
+            shut.ShouldAllBe(r => r.NextOpening!.DaysAway == 0);
+
+            // ...and nothing is said about a kitchen that is already open, because "opens at six"
+            // beside "open now" is a second answer to a settled question.
+            page.Items.Where(r => r.IsOpenNow).ShouldAllBe(r => r.NextOpening == null);
+        }
+        finally
+        {
+            factory.Clock.LocalTimeOfDay = wasAt;
+        }
+    }
+
+    [Fact]
     public async Task An_oversized_page_request_is_clamped_rather_than_obeyed()
     {
         // An unbounded page size is a cheap request that is expensive to answer.

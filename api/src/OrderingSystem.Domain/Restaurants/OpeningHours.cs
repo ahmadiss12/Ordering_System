@@ -54,6 +54,62 @@ public static class OpeningHours
     }
 
     /// <summary>
+    /// When the kitchen next opens, and how many days away that is.
+    ///
+    /// <para>
+    /// A card that says only "Closed" leaves somebody browsing at ten in the morning to guess
+    /// which of five shut restaurants is worth waiting for. The hours are already loaded to
+    /// decide whether it is open at all, so saying when costs a walk over the same list.
+    /// </para>
+    /// <para>
+    /// Laid out on the same weekly timeline the overlap check uses, so a window that opens on
+    /// Sunday evening is correctly the next one for somebody looking on Sunday afternoon, and
+    /// Monday morning's window is the next one for somebody looking on Sunday night. Null when
+    /// there are no hours at all — a kitchen on holiday, which the product allows on purpose.
+    /// </para>
+    /// </summary>
+    /// <param name="daysAway">
+    /// 0 for later today, 1 for tomorrow, and so on in the restaurant's own week — not the
+    /// reader's. It is computed here because only this side knows what day it is where the
+    /// kitchen is, and a browser in another timezone would work it out differently.
+    /// </param>
+    public static (DayOfWeek Day, TimeOnly Time, int DaysAway)? NextOpeningAfter(
+        IEnumerable<RestaurantHours> hours, DayOfWeek day, TimeOnly localTime)
+    {
+        ArgumentNullException.ThrowIfNull(hours);
+
+        var now = (DayIndex(day) * MinutesInDay) + Minutes(localTime);
+        var soonest = int.MaxValue;
+        RestaurantHours? next = null;
+
+        foreach (var window in hours)
+        {
+            // How long until this window opens, wrapping past Sunday night into Monday. A
+            // window that has already opened this week comes back as "next week", which is
+            // right: its next opening is seven days from when it last did.
+            var wait = (((SpanOf(window).Start - now) % MinutesInWeek) + MinutesInWeek) % MinutesInWeek;
+
+            if (wait > 0 && wait < soonest)
+            {
+                soonest = wait;
+                next = window;
+            }
+        }
+
+        if (next is null)
+        {
+            return null;
+        }
+
+        // Whole days apart on the calendar, not the wait rounded down: a window opening at 09:00
+        // tomorrow is a day away whether it is now 23:00 or 08:00, and "opens in 10 hours" is
+        // not what anybody wants read back to them.
+        var daysAway = ((now + soonest) / MinutesInDay) - (now / MinutesInDay);
+
+        return (next.DayOfWeek, next.OpenTime, daysAway % 7);
+    }
+
+    /// <summary>
     /// Where a window sits on the week, in minutes from Monday midnight. A window that closes
     /// before it opens runs past the end of its day, so its end simply reaches beyond its start —
     /// and one that runs past Sunday night wraps, which is what the second span below is for.

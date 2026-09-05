@@ -55,15 +55,27 @@ public sealed class CatalogService(IAppDbContext db, IClock clock)
             })
             .ToListAsync(ct);
 
-        var items = rows.Select(r => new RestaurantSummary(
-            r.Id, r.Name, r.Slug, r.Description, r.LogoUrl,
-            r.MinOrderUsd, r.DefaultPrepMinutes, r.IsAcceptingOrders,
-            IsOpenNow(r.Hours.Select(h => new RestaurantHours
-            {
-                DayOfWeek = h.DayOfWeek, OpenTime = h.OpenTime, CloseTime = h.CloseTime,
-            })),
-            r.Zone?.DeliveryFeeUsd,
-            r.Zone?.EstimatedMinutes)).ToList();
+        var items = rows.Select(r =>
+        {
+            var hours = r.Hours
+                .Select(h => new RestaurantHours
+                {
+                    DayOfWeek = h.DayOfWeek, OpenTime = h.OpenTime, CloseTime = h.CloseTime,
+                })
+                .ToList();
+
+            var isOpenNow = IsOpenNow(hours);
+
+            return new RestaurantSummary(
+                r.Id, r.Name, r.Slug, r.Description, r.LogoUrl,
+                r.MinOrderUsd, r.DefaultPrepMinutes, r.IsAcceptingOrders,
+                isOpenNow,
+                r.Zone?.DeliveryFeeUsd,
+                r.Zone?.EstimatedMinutes,
+                // Only when shut. "Opens at six" beside "Open now" would be a second answer to a
+                // question the first one has already settled.
+                isOpenNow ? null : NextOpeningFor(hours));
+        }).ToList();
 
         return new PagedResult<RestaurantSummary>(items, currentPage, size, total);
     }
@@ -93,7 +105,7 @@ public sealed class CatalogService(IAppDbContext db, IClock clock)
             row.Id, row.Name, row.Slug, row.Description, row.LogoUrl, row.CoverUrl, row.Phone,
             row.MinOrderUsd, row.DefaultPrepMinutes, row.IsAcceptingOrders,
             IsOpenNow(hours),
-            [.. hours.Select(h => new OpeningWindow(h.DayOfWeek, h.OpenTime, h.CloseTime))],
+            [.. hours.Select(h => new CatalogOpeningWindow(h.DayOfWeek, h.OpenTime, h.CloseTime))],
             row.Zones);
     }
 
@@ -165,5 +177,17 @@ public sealed class CatalogService(IAppDbContext db, IClock clock)
     {
         var now = clock.LocalNow;
         return OpeningHours.IsOpenAt(hours, now.DayOfWeek, TimeOnly.FromDateTime(now.DateTime));
+    }
+
+    private NextOpening? NextOpeningFor(IEnumerable<RestaurantHours> hours)
+    {
+        var now = clock.LocalNow;
+
+        var next = OpeningHours.NextOpeningAfter(
+            hours, now.DayOfWeek, TimeOnly.FromDateTime(now.DateTime));
+
+        return next is { } opening
+            ? new NextOpening(opening.Day, opening.Time, opening.DaysAway)
+            : null;
     }
 }

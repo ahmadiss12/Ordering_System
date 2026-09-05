@@ -1,0 +1,26 @@
+.bar {
+  // Material 3 ignores color="primary" on a toolbar, so the surface comes from the theme's own
+  // tokens rather than an attribute that silently does nothing. The dashboard learned this the
+  // same way.
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+
+  // Stays put while a long menu scrolls under it: on a phone, the way back to the list should
+  // not be a scroll to the top away.
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+  font: var(--mat-sys-title-medium);
+}
+
+main {
+  display: block;
+}

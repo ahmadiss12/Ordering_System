@@ -1,0 +1,168 @@
+.intro {
+  margin-bottom: 1rem;
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font: var(--mat-sys-headline-small);
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.failed mat-card-content,
+.empty mat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.empty mat-card-content {
+  flex-direction: column;
+  text-align: center;
+  padding: 1.5rem 1rem;
+
+  p {
+    margin: 0;
+  }
+}
+
+.failed {
+  mat-icon {
+    color: var(--mat-sys-error);
+  }
+
+  .heading {
+    margin: 0;
+    font: var(--mat-sys-body-large);
+  }
+
+  .muted {
+    margin: 0;
+    font: var(--mat-sys-body-small);
+  }
+}
+
+.restaurants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.restaurant {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface);
+  color: inherit;
+  text-decoration: none;
+
+  // A whole card is the tap target, not the name inside it. On a phone in one hand, anything
+  // smaller is a miss.
+  min-height: 3.5rem;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--mat-sys-primary);
+  }
+
+  // Receded rather than removed: still readable, still reachable, visibly not taking orders.
+  &.shut .who {
+    opacity: 0.7;
+  }
+}
+
+.who {
+  min-width: 0;
+}
+
+h2 {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+}
+
+.description {
+  margin: 0.15rem 0 0;
+  font: var(--mat-sys-body-small);
+
+  // Two lines of a description is enough to know what the place is; more turns a list into a
+  // page of prose.
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.facts {
+  margin: 0.35rem 0 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.dot {
+  margin: 0 0.35rem;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  max-width: 45%;
+}
+
+.badge {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: var(--mat-sys-label-medium);
+
+  &.open {
+    color: var(--mat-sys-on-primary-container);
+    background: var(--mat-sys-primary-container);
+  }
+
+  // Open but swamped. Given its own colour because it is a different answer from "closed" —
+  // one is worth waiting twenty minutes for and the other is worth coming back tomorrow for.
+  &.paused {
+    color: var(--mat-sys-on-tertiary-container);
+    background: var(--mat-sys-tertiary-container);
+  }
+
+  &.closed {
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container-highest);
+  }
+}
+
+.when {
+  font: var(--mat-sys-body-small);
+  text-align: right;
+}
+
+@media (max-width: 30rem) {
+  .restaurant {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .state {
+    flex-direction: row;
+    align-items: center;
+    max-width: none;
+  }
+}

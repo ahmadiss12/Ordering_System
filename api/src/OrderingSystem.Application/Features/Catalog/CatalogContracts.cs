@@ -13,9 +13,37 @@ public sealed record RestaurantSummary(
     bool IsOpenNow,
     /// <summary>Present only when the caller filtered by a zone. Null means "not asked".</summary>
     decimal? DeliveryFeeUsd,
-    int? EstimatedMinutes);
+    int? EstimatedMinutes,
+    /// <summary>
+    /// When this kitchen next opens, or null while it is open — and null too for one that has no
+    /// hours at all, which is a restaurant on holiday.
+    /// </summary>
+    NextOpening? NextOpening);
 
-public sealed record OpeningWindow(DayOfWeek DayOfWeek, TimeOnly OpenTime, TimeOnly CloseTime);
+/// <summary>
+/// The next time a shut kitchen opens.
+/// </summary>
+/// <param name="DaysAway">
+/// 0 for later today, 1 for tomorrow, counted in the restaurant's own week rather than the
+/// reader's. Worked out on this side because only this side knows what day it is where the
+/// kitchen is; a browser in another timezone would arrive at a different answer from the same
+/// day and time.
+/// </param>
+public sealed record NextOpening(DayOfWeek Day, TimeOnly Time, int DaysAway);
+
+/// <summary>
+/// One window a restaurant is open in, as a customer reads it.
+///
+/// <para>
+/// Named <c>CatalogOpeningWindow</c> rather than <c>OpeningWindow</c> because the hours editor
+/// has a record of that name already. OpenAPI schema ids are a flat namespace where C# namespaces
+/// are not, so the two collapsed into one schema and the editor's shape won — leaving the
+/// generated client describing this one's <c>dayOfWeek</c> as <c>day</c>, a field that is not
+/// there. It went unnoticed because nothing had read a restaurant's hours from the public side
+/// until the storefront did. ContractNameCollisionTests now fails the build on the next one.
+/// </para>
+/// </summary>
+public sealed record CatalogOpeningWindow(DayOfWeek DayOfWeek, TimeOnly OpenTime, TimeOnly CloseTime);
 
 public sealed record ZoneDelivery(Guid ZoneId, string ZoneName, decimal DeliveryFeeUsd, int EstimatedMinutes);
 
@@ -31,7 +59,7 @@ public sealed record RestaurantDetail(
     int DefaultPrepMinutes,
     bool IsAcceptingOrders,
     bool IsOpenNow,
-    IReadOnlyList<OpeningWindow> Hours,
+    IReadOnlyList<CatalogOpeningWindow> Hours,
     IReadOnlyList<ZoneDelivery> DeliversTo);
 
 // ---------------------------------------------------------------- menu

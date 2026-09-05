@@ -4046,6 +4046,14 @@ export interface CartResponse {
     [key: string]: any;
 }
 
+export interface CatalogOpeningWindow {
+    dayOfWeek: DayOfWeek;
+    openTime: string;
+    closeTime: string;
+
+    [key: string]: any;
+}
+
 export interface CategoryResponse {
     id: string;
     name: string;
@@ -4256,6 +4264,14 @@ export interface MenuItemSummary {
     isAvailable: boolean;
     sortOrder: number;
     hasOptions: boolean;
+
+    [key: string]: any;
+}
+
+export interface NextOpening {
+    day: DayOfWeek;
+    time: string;
+    daysAway: number;
 
     [key: string]: any;
 }
@@ -4553,7 +4569,7 @@ export interface RestaurantDetail {
     defaultPrepMinutes: number;
     isAcceptingOrders: boolean;
     isOpenNow: boolean;
-    hours: OpeningWindow[];
+    hours: CatalogOpeningWindow[];
     deliversTo: ZoneDelivery[];
 
     [key: string]: any;
@@ -4605,6 +4621,7 @@ export interface RestaurantSummary {
     isOpenNow: boolean;
     deliveryFeeUsd: number | null;
     estimatedMinutes: number | null;
+    nextOpening: NextOpening | null;
 
     [key: string]: any;
 }

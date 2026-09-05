@@ -1,0 +1,262 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+  font: var(--mat-sys-label-large);
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+  }
+
+  p {
+    margin: 0.2rem 0 0;
+    max-width: 60ch;
+  }
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: var(--mat-sys-label-medium);
+
+  &.open {
+    color: var(--mat-sys-on-primary-container);
+    background: var(--mat-sys-primary-container);
+  }
+
+  &.paused {
+    color: var(--mat-sys-on-tertiary-container);
+    background: var(--mat-sys-tertiary-container);
+  }
+
+  &.closed {
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container-highest);
+  }
+}
+
+.facts,
+.delivery,
+.hours {
+  margin-bottom: 0.75rem;
+}
+
+.facts mat-card-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+}
+
+.fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  mat-icon {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  a {
+    color: var(--mat-sys-primary);
+  }
+}
+
+.label {
+  font: var(--mat-sys-label-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font: var(--mat-sys-title-medium);
+}
+
+.zones {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.3rem 0;
+  }
+}
+
+.zone-terms {
+  white-space: nowrap;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.dot {
+  margin: 0 0.25rem;
+}
+
+dl {
+  margin: 0;
+}
+
+.day {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.2rem 0;
+
+  dt {
+    font: var(--mat-sys-body-medium);
+  }
+
+  dd {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+
+    &.shut {
+      opacity: 0.7;
+    }
+  }
+}
+
+.menu-heading {
+  margin: 1.5rem 0 0.75rem;
+  font: var(--mat-sys-title-large);
+}
+
+.section {
+  margin-bottom: 1.25rem;
+
+  h3 {
+    margin: 0 0 0.4rem;
+    font: var(--mat-sys-title-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface);
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  &:first-child {
+    border-top: none;
+  }
+
+  // Sold out stays on the menu and stays legible. Removing it would leave somebody hunting for
+  // the dish they came for, with nothing saying it is off today.
+  &.gone .what {
+    opacity: 0.6;
+  }
+}
+
+.name {
+  margin: 0;
+  font: var(--mat-sys-body-large);
+}
+
+.description {
+  margin: 0.15rem 0 0;
+  font: var(--mat-sys-body-small);
+}
+
+.price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  font: var(--mat-sys-body-large);
+  font-variant-numeric: tabular-nums;
+}
+
+.sold-out {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: var(--mat-sys-label-small);
+  color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.gone,
+.failed,
+.empty {
+  margin-bottom: 1rem;
+}
+
+.gone mat-card-content,
+.empty mat-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 1.5rem 1rem;
+
+  p {
+    margin: 0;
+  }
+}
+
+.failed mat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  mat-icon {
+    color: var(--mat-sys-error);
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.heading {
+  font: var(--mat-sys-body-large);
+}
+
+@media (max-width: 30rem) {
+  .head {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
