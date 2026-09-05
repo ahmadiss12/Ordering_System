@@ -97,12 +97,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         modelBuilder.Entity<Cart>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin || e.UserId == _tenant.UserId);
 
-        // Staff see their restaurant's orders; a customer sees their own; an admin sees all.
-        // An anonymous caller has a null UserId, which matches nothing - correct, not a bug.
+        // Staff see their restaurant's orders, everybody sees their own, an admin sees all. An
+        // anonymous caller has a null UserId, which matches nothing - correct, not a bug.
+        //
+        // "Everybody sees their own" was once "a customer sees their own", gated on having no
+        // restaurant claim - so a staff member's own order history disappeared the moment they
+        // were given one. That was tolerable while staff accounts were seed data. It stopped
+        // being tolerable when an owner could invite somebody by email, because the person they
+        // invite usually already has an account here: their history would vanish on being hired.
+        //
+        // Nothing is widened by this except a caller's own rows, which is the one set nobody
+        // needs protecting from.
         modelBuilder.Entity<Order>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin
             || (_tenant.RestaurantId != null && e.RestaurantId == _tenant.RestaurantId)
-            || (_tenant.RestaurantId == null && e.CustomerId == _tenant.UserId));
+            || e.CustomerId == _tenant.UserId);
 
         modelBuilder.Entity<RestaurantStaff>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin
@@ -116,28 +125,33 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         // restaurant on the platform. The discipline of always querying from the aggregate root
         // works right up until somebody doesn't.
         //
-        // Each predicate below restates its parent's rule through a navigation. They must be
-        // changed together; ChildFilterConsistencyTests fails the build if one is forgotten.
+        // Each predicate below restates its parent's rule through a navigation, so all five have
+        // to be changed together. TenantIsolationTests is what catches one being forgotten: it
+        // queries each child table directly, which is exactly what a missed filter exposes.
+        //
+        // Navigating to the parent brings the parent's filter with it, so a child whose predicate
+        // is subtly wrong still cannot reach an invisible order. That is a backstop, not a reason
+        // to be careless: it does nothing at all for a child with no filter.
 
         modelBuilder.Entity<OrderLine>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin
             || (_tenant.RestaurantId != null && e.Order.RestaurantId == _tenant.RestaurantId)
-            || (_tenant.RestaurantId == null && e.Order.CustomerId == _tenant.UserId));
+            || e.Order.CustomerId == _tenant.UserId);
 
         modelBuilder.Entity<OrderLineOption>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin
             || (_tenant.RestaurantId != null && e.OrderLine.Order.RestaurantId == _tenant.RestaurantId)
-            || (_tenant.RestaurantId == null && e.OrderLine.Order.CustomerId == _tenant.UserId));
+            || e.OrderLine.Order.CustomerId == _tenant.UserId);
 
         modelBuilder.Entity<OrderEvent>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin
             || (_tenant.RestaurantId != null && e.Order.RestaurantId == _tenant.RestaurantId)
-            || (_tenant.RestaurantId == null && e.Order.CustomerId == _tenant.UserId));
+            || e.Order.CustomerId == _tenant.UserId);
 
         modelBuilder.Entity<Payment>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin
             || (_tenant.RestaurantId != null && e.Order.RestaurantId == _tenant.RestaurantId)
-            || (_tenant.RestaurantId == null && e.Order.CustomerId == _tenant.UserId));
+            || e.Order.CustomerId == _tenant.UserId);
 
         modelBuilder.Entity<CartLine>().HasQueryFilter(e =>
             _tenant.IsPlatformAdmin || e.Cart.UserId == _tenant.UserId);

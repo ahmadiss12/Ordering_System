@@ -12,6 +12,12 @@ namespace OrderingSystem.Api.IntegrationTests.Tenancy;
 /// Two restaurants, each with a staff member and a customer who has ordered from them. The whole
 /// point of the marketplace's security model is that neither side can see the other, so the tests
 /// need both sides to exist before they can prove anything.
+///
+/// <para>
+/// Restaurant A's staff member has also ordered dinner from restaurant B, which is the awkward
+/// case: they are staff and a stranger's customer at the same time, and the filters have to get
+/// both halves right at once.
+/// </para>
 /// </summary>
 public sealed class TwoRestaurantScenario : IAsyncLifetime
 {
@@ -25,6 +31,9 @@ public sealed class TwoRestaurantScenario : IAsyncLifetime
     public Guid CustomerB { get; } = Guid.NewGuid();
     public Guid OrderA { get; private set; }
     public Guid OrderB { get; private set; }
+
+    /// <summary>Restaurant A's staff member, ordering from restaurant B as an ordinary customer.</summary>
+    public Guid StaffAsCustomerOrder { get; private set; }
 
     public async ValueTask InitializeAsync()
     {
@@ -53,6 +62,7 @@ public sealed class TwoRestaurantScenario : IAsyncLifetime
 
         OrderA = AddOrder(db, CustomerA, RestaurantA, "A-0001");
         OrderB = AddOrder(db, CustomerB, RestaurantB, "B-0001");
+        StaffAsCustomerOrder = AddOrder(db, StaffA, RestaurantB, "S-0001");
         await db.SaveChangesAsync();
     }
 

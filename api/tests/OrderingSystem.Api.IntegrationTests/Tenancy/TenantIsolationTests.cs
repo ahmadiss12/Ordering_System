@@ -17,14 +17,53 @@ public sealed class TenantIsolationTests(TwoRestaurantScenario scenario)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Staff_see_only_their_own_restaurants_orders()
+    public async Task Staff_see_their_restaurants_orders_and_nobody_elses()
     {
         await using var db = scenario.Context(TestTenant.Staff(scenario.StaffA, scenario.RestaurantA));
 
-        var visible = await db.Orders.Select(o => o.RestaurantId).ToListAsync(Ct);
+        var visible = await db.Orders
+            .Select(o => new { o.Id, o.RestaurantId, o.CustomerId })
+            .ToListAsync(Ct);
 
-        visible.ShouldAllBe(id => id == scenario.RestaurantA);
-        visible.ShouldNotBeEmpty("staff must still see their own orders");
+        visible.ShouldNotBeEmpty("staff must still see their own restaurant's orders");
+
+        // Two ways in, and only two: the order belongs to the restaurant they work for, or it
+        // belongs to them. Restaurant B has an order of each kind, so this would catch either
+        // half being wrong.
+        visible.ShouldAllBe(o =>
+            o.RestaurantId == scenario.RestaurantA || o.CustomerId == scenario.StaffA);
+        visible.ShouldContain(o => o.Id == scenario.OrderA);
+        visible.ShouldNotContain(o => o.Id == scenario.OrderB);
+    }
+
+    [Fact]
+    public async Task A_staff_member_still_sees_the_orders_they_placed_themselves()
+    {
+        await using var db = scenario.Context(TestTenant.Staff(scenario.StaffA, scenario.RestaurantA));
+
+        // The bug this pins: a staff member's own order history used to disappear the moment they
+        // were given a restaurant claim, because the filter read "a customer with no restaurant
+        // sees their own". Being hired is not a reason to lose the dinner you ordered last week.
+        var mine = await db.Orders.Where(o => o.CustomerId == scenario.StaffA).ToListAsync(Ct);
+        var lines = await db.OrderLines
+            .Where(l => l.OrderId == scenario.StaffAsCustomerOrder)
+            .ToListAsync(Ct);
+
+        mine.Select(o => o.Id).ShouldContain(scenario.StaffAsCustomerOrder);
+        lines.ShouldNotBeEmpty("the order is useless without the items on it");
+    }
+
+    [Fact]
+    public async Task Seeing_your_own_order_at_another_restaurant_is_not_a_way_into_that_restaurant()
+    {
+        await using var db = scenario.Context(TestTenant.Staff(scenario.StaffA, scenario.RestaurantA));
+
+        // StaffA has an order at restaurant B, so restaurant B's rows are reachable through *that*
+        // order and no other. The worry is a filter written as "or the order is at a restaurant I
+        // have ordered from", which would hand over the whole tenant.
+        var atB = await db.Orders.CountAsync(o => o.RestaurantId == scenario.RestaurantB, Ct);
+
+        atB.ShouldBe(1);
     }
 
     [Fact]
