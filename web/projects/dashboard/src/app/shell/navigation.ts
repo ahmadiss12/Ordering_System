@@ -63,6 +63,12 @@ export const NAV = {
     icon: 'settings',
     roles: RESTAURANT_OWNER,
   },
+  reports: {
+    path: 'reports',
+    label: 'Reports',
+    icon: 'insights',
+    roles: RESTAURANT_OWNER,
+  },
   platform: {
     path: 'platform',
     label: 'Platform',

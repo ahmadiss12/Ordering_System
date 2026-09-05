@@ -1,0 +1,326 @@
+<header class="intro">
+  <h1>Reports</h1>
+  <p>
+    What you took, and what you turned away. Every figure counts the day your kitchen worked &mdash;
+    an order taken after midnight belongs to the evening before it, the same way its order number
+    reads.
+  </p>
+</header>
+
+<!-- Filters in one row above the charts. -->
+<div class="range">
+  <mat-chip-listbox aria-label="How far back">
+    @for (preset of presets; track preset.key) {
+      <mat-chip-option
+        [selected]="store.preset() === preset.key"
+        (selectionChange)="$event.selected && choose(preset)"
+      >
+        {{ preset.label }}
+      </mat-chip-option>
+    }
+  </mat-chip-listbox>
+
+  <span class="spacer"></span>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>From</mat-label>
+    <input
+      matInput
+      type="date"
+      [value]="store.from()"
+      (change)="store.setFrom($any($event.target).value)"
+    />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>To</mat-label>
+    <input
+      matInput
+      type="date"
+      [value]="store.to()"
+      (change)="store.setTo($any($event.target).value)"
+    />
+  </mat-form-field>
+</div>
+
+@if (!store.rangeIsValid()) {
+  <p class="failed">
+    <mat-icon>error_outline</mat-icon>
+    A report runs from an earlier day to a later one, and covers at most {{ maxRangeDays }} days.
+  </p>
+}
+
+@if (store.loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (store.error(); as message) {
+  <mat-card appearance="outlined" class="error">
+    <mat-card-content>
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ message }}</span>
+    </mat-card-content>
+  </mat-card>
+}
+
+<!-- Same rule as everywhere else in this app: a failed load draws nothing rather than drawing
+     zeroes, because a report of zero is a sentence about the business. -->
+@if (store.loaded() && store.report(); as report) {
+  <!-- Four numbers, each of which is one number. A bar of length one is not a chart. -->
+  <div class="totals">
+    <mat-card appearance="outlined" class="tile">
+      <mat-card-content>
+        <span class="label">Revenue</span>
+        <span class="figure">{{ money(report.totals.revenueUsd) }}</span>
+        <span class="note">across {{ report.totals.kept }} orders you kept</span>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="tile">
+      <mat-card-content>
+        <span class="label">Average order</span>
+        <span class="figure">{{ money(report.totals.averageOrderUsd) }}</span>
+        <span class="note">of the orders you kept, not of every one placed</span>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="tile">
+      <mat-card-content>
+        <span class="label">Commission</span>
+        <span class="figure">{{ money(report.totals.commissionUsd) }}</span>
+        <span class="note">what each order was charged when it was placed</span>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="tile">
+      <mat-card-content>
+        <span class="label">Refused</span>
+        <span class="figure">{{ percent(report.totals.rejectionRate) }}</span>
+        <span class="note">
+          {{ report.totals.rejected }} of {{ report.totals.orders }} orders &middot;
+          {{ report.totals.cancelled }} withdrawn by the customer
+        </span>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <mat-card appearance="outlined" class="plots">
+    <mat-card-content>
+      <div class="plot-head">
+        <h2>Orders a day</h2>
+
+        <!-- Two series, so a legend is always present. -->
+        @if (hasRefusals()) {
+          <div class="legend">
+            <span class="key"><span class="swatch kept"></span>Kept</span>
+            <span class="key"><span class="swatch refused"></span>Refused</span>
+          </div>
+        }
+      </div>
+
+      <svg
+        class="chart"
+        [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height"
+        role="img"
+        aria-label="Orders a day. The same figures are in the table below."
+      >
+        @for (tick of orders().ticks; track tick.value) {
+          <line
+            class="grid"
+            [attr.x1]="chart.left"
+            [attr.x2]="chart.width - chart.right"
+            [attr.y1]="tick.y"
+            [attr.y2]="tick.y"
+          />
+          <text class="tick" [attr.x]="chart.left - 6" [attr.y]="tick.y + 3">{{ tick.label }}</text>
+        }
+
+        @for (bar of orders().bars; track bar.date) {
+          <g
+            [class.hovered]="hovered() === bar.date"
+            (pointerenter)="hovered.set(bar.date)"
+            (pointerleave)="hovered.set(null)"
+          >
+            <!-- A hit target the full height of the plot, so a one-order day is still hoverable. -->
+            <rect
+              class="hit"
+              [attr.x]="bar.x"
+              [attr.y]="chart.top"
+              [attr.width]="bar.width"
+              [attr.height]="orders().baseline - chart.top"
+            >
+              <title>{{ tooltip(bar) }}</title>
+            </rect>
+
+            @if (bar.kept; as kept) {
+              <rect
+                class="mark kept"
+                [attr.x]="bar.x"
+                [attr.y]="kept.y"
+                [attr.width]="bar.width"
+                [attr.height]="kept.height"
+                [attr.rx]="bar.rejected ? 0 : chart.radius"
+              />
+            }
+            @if (bar.rejected; as rejected) {
+              <rect
+                class="mark refused"
+                [attr.x]="bar.x"
+                [attr.y]="rejected.y"
+                [attr.width]="bar.width"
+                [attr.height]="rejected.height"
+                [attr.rx]="chart.radius"
+              />
+            }
+          </g>
+        }
+
+        <line
+          class="axis"
+          [attr.x1]="chart.left"
+          [attr.x2]="chart.width - chart.right"
+          [attr.y1]="orders().baseline"
+          [attr.y2]="orders().baseline"
+        />
+      </svg>
+
+      <div class="plot-head second">
+        <h2>Revenue a day</h2>
+      </div>
+
+      <svg
+        class="chart"
+        [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height"
+        role="img"
+        aria-label="Revenue a day. The same figures are in the table below."
+      >
+        @for (tick of revenue().ticks; track tick.value) {
+          <line
+            class="grid"
+            [attr.x1]="chart.left"
+            [attr.x2]="chart.width - chart.right"
+            [attr.y1]="tick.y"
+            [attr.y2]="tick.y"
+          />
+          <text class="tick" [attr.x]="chart.left - 6" [attr.y]="tick.y + 3">{{ tick.label }}</text>
+        }
+
+        @for (bar of revenue().bars; track bar.date) {
+          <g
+            [class.hovered]="hovered() === bar.date"
+            (pointerenter)="hovered.set(bar.date)"
+            (pointerleave)="hovered.set(null)"
+          >
+            <rect
+              class="hit"
+              [attr.x]="bar.x"
+              [attr.y]="chart.top"
+              [attr.width]="bar.width"
+              [attr.height]="revenue().baseline - chart.top"
+            >
+              <title>{{ tooltip(bar) }}</title>
+            </rect>
+
+            @if (bar.kept; as revenueBar) {
+              <rect
+                class="mark kept"
+                [attr.x]="bar.x"
+                [attr.y]="revenueBar.y"
+                [attr.width]="bar.width"
+                [attr.height]="revenueBar.height"
+                [attr.rx]="chart.radius"
+              />
+            }
+          </g>
+        }
+
+        <line
+          class="axis"
+          [attr.x1]="chart.left"
+          [attr.x2]="chart.width - chart.right"
+          [attr.y1]="revenue().baseline"
+          [attr.y2]="revenue().baseline"
+        />
+
+        <!-- The day labels, drawn once under the lower plot: the two share this axis. Inside the
+             SVG so they scale with the gutter they must line up with — outside, the row was
+             pinned to a 40px margin while the SVG's own 40-unit gutter scaled with the container,
+             so the two agreed at exactly one window width. -->
+        @for (bar of revenue().bars; track bar.date; let i = $index) {
+          @if (showsLabel(i)) {
+            <text class="day" [attr.x]="bar.x + bar.width / 2" [attr.y]="chart.labelBaseline">
+              {{ shortDayLabel(bar.date) }}
+            </text>
+          }
+        }
+      </svg>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" class="reasons">
+    <mat-card-content>
+      <h2>Why you turned orders away</h2>
+
+      @if (report.rejections.length) {
+        <ul class="reason-list">
+          @for (row of report.rejections; track row.reason) {
+            <li>
+              <span class="name">{{ reasonLabel(row.reason) }}</span>
+              <span class="track">
+                <span class="fill" [style.width.%]="row.share * 100"></span>
+              </span>
+              <!-- Direct labels rather than an axis: six rows do not need one, and the share of
+                   refusals is the number worth reading, not the pixel length. -->
+              <span class="value">{{ row.count }} &middot; {{ percent(row.share) }}</span>
+            </li>
+          }
+        </ul>
+        <p class="muted">
+          Shares are of the {{ report.totals.rejected }} orders you refused, not of everything you
+          took.
+        </p>
+      } @else {
+        <p class="muted">You did not turn away a single order in this period.</p>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- The table view the charts owe. Everything above is also readable as numbers. -->
+  <mat-card appearance="outlined" class="table-card">
+    <mat-card-content>
+      <details>
+        <summary>Every day as a table</summary>
+
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col" class="right">Orders</th>
+              <th scope="col" class="right">Refused</th>
+              <th scope="col" class="right">Revenue</th>
+              <th scope="col" class="right">Commission</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (day of days(); track day.date) {
+              <tr>
+                <th scope="row">{{ dayLabel(day.date) }}</th>
+                <td class="right">{{ day.orders }}</td>
+                <td class="right">{{ day.rejected }}</td>
+                <td class="right">{{ money(day.revenueUsd) }}</td>
+                <td class="right">{{ money(day.commissionUsd) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </details>
+    </mat-card-content>
+  </mat-card>
+} @else if (!store.loading() && !store.error()) {
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <p class="failed">Your report could not be loaded, so nothing is shown here.</p>
+      <button matButton (click)="store.load()">Try again</button>
+    </mat-card-content>
+  </mat-card>
+}

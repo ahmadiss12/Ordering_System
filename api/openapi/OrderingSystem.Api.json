@@ -2718,16 +2718,16 @@
             "name": "from",
             "in": "query",
             "schema": {
-              "type": "string",
-              "format": "date"
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
             }
           },
           {
             "name": "to",
             "in": "query",
             "schema": {
-              "type": "string",
-              "format": "date"
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
             }
           },
           {
@@ -2790,16 +2790,16 @@
             "name": "from",
             "in": "query",
             "schema": {
-              "type": "string",
-              "format": "date"
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
             }
           },
           {
             "name": "to",
             "in": "query",
             "schema": {
-              "type": "string",
-              "format": "date"
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
             }
           }
         ],
@@ -5890,8 +5890,8 @@
         "type": "object",
         "properties": {
           "date": {
-            "type": "string",
-            "format": "date"
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
           },
           "orders": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -6144,12 +6144,12 @@
         "type": "object",
         "properties": {
           "from": {
-            "type": "string",
-            "format": "date"
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
           },
           "to": {
-            "type": "string",
-            "format": "date"
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
           },
           "totals": {
             "$ref": "#/components/schemas/ReportTotals"

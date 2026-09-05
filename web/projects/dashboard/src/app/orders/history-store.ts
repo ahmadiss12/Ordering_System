@@ -44,11 +44,24 @@ export class HistoryStore {
 
   private readonly ordersSignal = signal<readonly OrderSummaryResponse[]>([]);
   private readonly filterSignal = signal(HISTORY_FILTERS[0]);
+
+  /**
+   * The days being looked at, as plain `yyyy-MM-dd` or empty for no limit.
+   *
+   * Strings rather than `Date`s, and business days rather than timestamps, so this screen and the
+   * report agree about which day an order belongs to. An order taken after midnight belongs to
+   * the evening the kitchen worked; anything reading the UTC clock would disagree by a few hours
+   * of every evening, and differently in winter and summer.
+   */
+  private readonly fromSignal = signal('');
+  private readonly toSignal = signal('');
   private readonly pageSignal = signal(1);
   private readonly totalSignal = signal(0);
 
   readonly orders = this.ordersSignal.asReadonly();
   readonly filter = this.filterSignal.asReadonly();
+  readonly from = this.fromSignal.asReadonly();
+  readonly to = this.toSignal.asReadonly();
   readonly page = this.pageSignal.asReadonly();
   readonly total = this.totalSignal.asReadonly();
 
@@ -59,6 +72,7 @@ export class HistoryStore {
   readonly hasPrevious = computed(() => this.pageSignal() > 1);
   readonly hasNext = computed(() => this.pageSignal() < this.totalPages());
   readonly isEmpty = computed(() => !this.loading() && this.ordersSignal().length === 0);
+  readonly hasRange = computed(() => this.fromSignal() !== '' || this.toSignal() !== '');
 
   constructor() {
     void this.load();
@@ -72,6 +86,18 @@ export class HistoryStore {
     await this.load();
   }
 
+  /** Narrows to a range of days. Back to page one, for the same reason changing a filter is. */
+  async setRange(from: string, to: string): Promise<void> {
+    this.fromSignal.set(from);
+    this.toSignal.set(to);
+    this.pageSignal.set(1);
+    await this.load();
+  }
+
+  async clearRange(): Promise<void> {
+    await this.setRange('', '');
+  }
+
   async goTo(page: number): Promise<void> {
     this.pageSignal.set(Math.min(Math.max(1, page), this.totalPages()));
     await this.load();
@@ -82,7 +108,14 @@ export class HistoryStore {
 
     try {
       const result = await firstValueFrom(
-        this.client.queue([...this.filterSignal().statuses], true, this.pageSignal(), PAGE_SIZE),
+        this.client.queue(
+          [...this.filterSignal().statuses],
+          true,
+          this.fromSignal() || undefined,
+          this.toSignal() || undefined,
+          this.pageSignal(),
+          PAGE_SIZE,
+        ),
       );
 
       this.ordersSignal.set(result.items);

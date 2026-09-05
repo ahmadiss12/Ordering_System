@@ -2832,7 +2832,7 @@ export interface IRestaurantOrdersClient {
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, from?: Date | undefined, to?: Date | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
+    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, from?: string | undefined, to?: string | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse>;
 }
 
 @Injectable({
@@ -2857,7 +2857,7 @@ export class RestaurantOrdersClient implements IRestaurantOrdersClient {
      * @param pageSize (optional) 
      * @return OK
      */
-    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, from?: Date | undefined, to?: Date | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
+    queue(status?: OrderStatus[] | undefined, newestFirst?: boolean | undefined, from?: string | undefined, to?: string | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<PagedResultOfOrderSummaryResponse> {
         let url_ = this.baseUrl + "/api/restaurant/orders?";
         if (status === null)
             throw new globalThis.Error("The parameter 'status' cannot be null.");
@@ -2870,11 +2870,11 @@ export class RestaurantOrdersClient implements IRestaurantOrdersClient {
         if (from === null)
             throw new globalThis.Error("The parameter 'from' cannot be null.");
         else if (from !== undefined)
-            url_ += "from=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+            url_ += "from=" + encodeURIComponent("" + from) + "&";
         if (to === null)
             throw new globalThis.Error("The parameter 'to' cannot be null.");
         else if (to !== undefined)
-            url_ += "to=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+            url_ += "to=" + encodeURIComponent("" + to) + "&";
         if (page === null)
             throw new globalThis.Error("The parameter 'page' cannot be null.");
         else if (page !== undefined)
@@ -2935,7 +2935,7 @@ export interface IRestaurantReportsClient {
      * @param to (optional) 
      * @return OK
      */
-    summary(from?: Date | undefined, to?: Date | undefined): Observable<RestaurantReportResponse>;
+    summary(from?: string | undefined, to?: string | undefined): Observable<RestaurantReportResponse>;
 }
 
 @Injectable({
@@ -2956,16 +2956,16 @@ export class RestaurantReportsClient implements IRestaurantReportsClient {
      * @param to (optional) 
      * @return OK
      */
-    summary(from?: Date | undefined, to?: Date | undefined): Observable<RestaurantReportResponse> {
+    summary(from?: string | undefined, to?: string | undefined): Observable<RestaurantReportResponse> {
         let url_ = this.baseUrl + "/api/restaurant/reports/summary?";
         if (from === null)
             throw new globalThis.Error("The parameter 'from' cannot be null.");
         else if (from !== undefined)
-            url_ += "from=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+            url_ += "from=" + encodeURIComponent("" + from) + "&";
         if (to === null)
             throw new globalThis.Error("The parameter 'to' cannot be null.");
         else if (to !== undefined)
-            url_ += "to=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+            url_ += "to=" + encodeURIComponent("" + to) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_ : any = {
@@ -4417,7 +4417,7 @@ export enum RejectionReason {
 }
 
 export interface ReportDay {
-    date: Date;
+    date: string;
     orders: number;
     rejected: number;
     revenueUsd: number;
@@ -4474,8 +4474,8 @@ export interface RestaurantMenu {
 }
 
 export interface RestaurantReportResponse {
-    from: Date;
-    to: Date;
+    from: string;
+    to: string;
     totals: ReportTotals;
     days: ReportDay[];
     rejections: RejectionBreakdown[];

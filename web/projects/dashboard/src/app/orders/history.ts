@@ -4,7 +4,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { FulfillmentType, OrderSummaryResponse } from 'api-client';
 import { HISTORY_FILTERS, HistoryStore } from './history-store';
@@ -29,7 +31,9 @@ import { reasonLabel, statusLabel, statusTone } from './order-wording';
     MatCardModule,
     MatChipsModule,
     MatDialogModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
     MatProgressBarModule,
   ],
   templateUrl: './history.html',

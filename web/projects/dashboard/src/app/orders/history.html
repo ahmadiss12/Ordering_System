@@ -3,17 +3,50 @@
   <p>Finished orders, newest first.</p>
 </header>
 
-<mat-chip-listbox
-  class="filters"
-  [value]="store.filter()"
-  (change)="store.setFilter($any($event).value ?? store.filter())"
->
-  @for (filter of filters; track filter.key) {
-    <mat-chip-option [value]="filter" [selected]="filter.key === store.filter().key">
-      {{ filter.label }}
-    </mat-chip-option>
+<div class="controls">
+  <mat-chip-listbox
+    class="filters"
+    [value]="store.filter()"
+    (change)="store.setFilter($any($event).value ?? store.filter())"
+  >
+    @for (filter of filters; track filter.key) {
+      <mat-chip-option [value]="filter" [selected]="filter.key === store.filter().key">
+        {{ filter.label }}
+      </mat-chip-option>
+    }
+  </mat-chip-listbox>
+
+  <span class="spacer"></span>
+
+  <!-- Days the kitchen worked, not UTC timestamps — so this agrees with the report about which
+       day an order belongs to. Either end can be left empty. -->
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>From</mat-label>
+    <input
+      matInput
+      type="date"
+      [value]="store.from()"
+      (change)="store.setRange($any($event.target).value, store.to())"
+    />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>To</mat-label>
+    <input
+      matInput
+      type="date"
+      [value]="store.to()"
+      (change)="store.setRange(store.from(), $any($event.target).value)"
+    />
+  </mat-form-field>
+
+  @if (store.hasRange()) {
+    <button matButton (click)="store.clearRange()">
+      <mat-icon>close</mat-icon>
+      All dates
+    </button>
   }
-</mat-chip-listbox>
+</div>
 
 @if (store.loading()) {
   <mat-progress-bar mode="indeterminate" />
@@ -31,8 +64,15 @@
   <mat-card appearance="outlined" class="empty">
     <mat-card-content>
       <mat-icon>inbox</mat-icon>
-      <p>Nothing here yet.</p>
-      <p class="muted">Orders appear once they are delivered, refused or cancelled.</p>
+      @if (store.hasRange()) {
+        <p>Nothing in those dates.</p>
+        <p class="muted">
+          Try a wider range, or clear the dates to see everything this restaurant has finished.
+        </p>
+      } @else {
+        <p>Nothing here yet.</p>
+        <p class="muted">Orders appear once they are delivered, refused or cancelled.</p>
+      }
     </mat-card-content>
   </mat-card>
 } @else {

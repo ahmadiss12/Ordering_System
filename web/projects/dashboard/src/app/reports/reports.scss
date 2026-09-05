@@ -1,0 +1,280 @@
+// Chart colours as roles rather than raw hex, so a value is defined once.
+//
+// Slots 1 and 2 of the validated categorical palette. Identity, not status: "refused" is a kind
+// of order here rather than a warning, and the reserved status colours would claim otherwise.
+// The pair clears every gate on the light surface — CVD ΔE 24.7, normal-vision 33.6, both above
+// 3:1 contrast. The app commits to a light theme (`color-scheme: light`), so there is no dark
+// step to define; the palette's dark values are #3987e5 and #d95926 if that ever changes.
+:host {
+  --series-kept: #2a78d6;
+  --series-refused: #eb6834;
+}
+
+.intro {
+  margin-bottom: 1.25rem;
+
+  h1 {
+    margin: 0 0 0.35rem;
+    font: var(--mat-sys-headline-small);
+  }
+
+  p {
+    max-width: 62ch;
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+
+  mat-form-field {
+    width: 10.5rem;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.error mat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--mat-sys-error);
+}
+
+.failed {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-error);
+}
+
+.muted {
+  margin: 0.75rem 0 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+h2 {
+  margin: 0;
+  font: var(--mat-sys-title-small);
+}
+
+// ------------------------------------------------------------------ the four figures
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tile mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.label {
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.figure {
+  font: var(--mat-sys-headline-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// ------------------------------------------------------------------ the two plots
+
+.plots {
+  margin-bottom: 1rem;
+}
+
+.plot-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+
+  &.second {
+    margin-top: 1.25rem;
+  }
+}
+
+.legend {
+  display: flex;
+  gap: 1rem;
+}
+
+.key {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  // Text wears text tokens; the swatch beside it carries the identity.
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+
+  &.kept {
+    background: var(--series-kept);
+  }
+
+  &.refused {
+    background: var(--series-refused);
+  }
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  // Height follows the viewBox rather than being pinned, so the SVG scales uniformly. Pinning it
+  // meant a horizontal stretch of about 1.6x, which distorted the tick text and turned the
+  // rounded data-ends into ellipses.
+  height: auto;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--mat-sys-outline-variant);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.axis {
+  stroke: var(--mat-sys-outline);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.tick {
+  font: var(--mat-sys-label-small);
+  fill: var(--mat-sys-on-surface-variant);
+  text-anchor: end;
+}
+
+.hit {
+  fill: transparent;
+}
+
+.mark {
+  &.kept {
+    fill: var(--series-kept);
+  }
+
+  &.refused {
+    fill: var(--series-refused);
+  }
+}
+
+// Hovering a day marks it in both plots at once, which is what makes the two read as one picture
+// of a day rather than as two unrelated charts.
+//
+// A ring on the day being read, rather than fading the other twenty-nine. Dimming them to 0.35
+// was the first attempt and it made the rest of the month almost unreadable — emphasis should
+// pick one out, not rub the others away.
+g.hovered .mark {
+  stroke: var(--mat-sys-on-surface);
+  stroke-width: 1.5;
+  paint-order: stroke;
+}
+
+text.day {
+  font-size: 9px;
+  fill: var(--mat-sys-on-surface-variant);
+  text-anchor: middle;
+}
+
+// ------------------------------------------------------------------ why orders were refused
+
+.reasons {
+  margin-bottom: 1rem;
+}
+
+.reason-list {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: minmax(9rem, 14rem) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+  }
+}
+
+.name {
+  font: var(--mat-sys-body-medium);
+}
+
+.track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--mat-sys-surface-container-high);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--series-kept);
+}
+
+.value {
+  font: var(--mat-sys-label-large);
+  font-variant-numeric: tabular-nums;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// ------------------------------------------------------------------ the table view
+
+.table-card summary {
+  cursor: pointer;
+  font: var(--mat-sys-title-small);
+}
+
+table {
+  width: 100%;
+  margin-top: 1rem;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-small);
+}
+
+th,
+td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  text-align: left;
+}
+
+thead th {
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

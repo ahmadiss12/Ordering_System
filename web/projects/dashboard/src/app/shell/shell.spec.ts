@@ -56,7 +56,14 @@ describe('Shell', () => {
     // No Platform. An owner is the top of their own restaurant and the bottom of that list —
     // what they are charged and whether they are listed are not theirs to set, and a section
     // they could open and be bounced out of would read as broken rather than as forbidden.
-    expect(sectionLabels(fixture)).toEqual(['Overview', 'Queue', 'History', 'Menu', 'Settings']);
+    expect(sectionLabels(fixture)).toEqual([
+      'Overview',
+      'Queue',
+      'History',
+      'Menu',
+      'Settings',
+      'Reports',
+    ]);
   });
 
   it('hides owner-only sections from staff', () => {
@@ -84,6 +91,6 @@ describe('Shell', () => {
 
     // '/' rather than '' for the landing section: an empty segment does not match the URL
     // exactly, and the active highlight silently never appears.
-    expect(hrefs).toEqual(['/', '/orders', '/history', '/menu', '/settings']);
+    expect(hrefs).toEqual(['/', '/orders', '/history', '/menu', '/settings', '/reports']);
   });
 });

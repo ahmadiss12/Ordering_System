@@ -25,6 +25,7 @@ builder.Services.AddOpenApi(options =>
 {
     options.AddOperationTransformer<OperationIdTransformer>();
     options.AddSchemaTransformer<EnumNamesTransformer>();
+    options.AddSchemaTransformer<CalendarDateTransformer>();
 });
 
 // The live channel a kitchen screen listens on. See OrdersHub for why it has no client-callable

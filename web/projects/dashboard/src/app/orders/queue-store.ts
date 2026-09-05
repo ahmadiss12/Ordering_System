@@ -214,7 +214,9 @@ export class QueueStore {
   async refresh(): Promise<void> {
     try {
       // newestFirst false: a queue is worked from the order that has waited longest.
-      const page = await firstValueFrom(this.client.queue([...LIVE_STATUSES], false, 1, PAGE_SIZE));
+      const page = await firstValueFrom(
+        this.client.queue([...LIVE_STATUSES], false, undefined, undefined, 1, PAGE_SIZE),
+      );
 
       this.ordersSignal.set(page.items);
       this.totalSignal.set(page.totalCount);
