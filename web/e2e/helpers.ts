@@ -8,6 +8,10 @@ export const ACCOUNTS = {
   staff: { email: 'staff@frieslab.test', password: 'Passw0rd!' },
   /** Shawarma Station's owner — the restaurant the order tests use. See ALWAYS_OPEN_SLUG. */
   shawarma: { email: 'owner@shawarma.test', password: 'Passw0rd!' },
+  /** The platform, which is the only account that can list a restaurant or set its commission. */
+  admin: { email: 'admin@ordering.test', password: 'Passw0rd!' },
+  /** Saj Corner's owner. Their restaurant is seeded with nothing set up — see FRESH_SLUG. */
+  freshOwner: { email: 'owner@sajcorner.test', password: 'Passw0rd!' },
   customer: { email: 'rita@example.test', password: 'Passw0rd!' },
 } as const;
 
@@ -24,6 +28,15 @@ export const RESTAURANT_SLUG = 'frieslab';
  */
 export const ALWAYS_OPEN_SLUG = 'shawarma-station';
 
+/**
+ * The restaurant seeded with nothing: no hours, no zones, no menu, not listed.
+ *
+ * The onboarding journey takes it from there to taking orders. Kept out of every other spec on
+ * purpose — it is only interesting while it is empty, and a test that borrowed it would have to
+ * put it back.
+ */
+export const FRESH_SLUG = 'saj-corner';
+
 /** Signs in through the real form, so the interceptor and guards are exercised too. */
 export async function signIn(page: Page, account = ACCOUNTS.owner): Promise<void> {
   await page.goto('/login');
@@ -32,6 +45,20 @@ export async function signIn(page: Page, account = ACCOUNTS.owner): Promise<void
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/$|\/menu/);
+}
+
+/**
+ * Signs out through the account menu, so the next sign-in starts from a clean session.
+ *
+ * Through the product rather than by clearing storage: the guard that sends a signed-in visitor
+ * away from /login is real, and a journey that swapped accounts behind its back would not have
+ * proved that somebody can actually hand the screen over.
+ */
+export async function signOut(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /account/i }).click();
+  await page.getByRole('menuitem', { name: /sign out/i }).click();
+
+  await expect(page).toHaveURL(/\/login/);
 }
 
 /**
@@ -99,13 +126,14 @@ export interface Basket {
  */
 export async function stockBasket(
   request: APIRequestContext,
-  options: { itemName?: string; quantity?: number } = {},
+  options: { itemName?: string; quantity?: number; slug?: string } = {},
 ): Promise<Basket> {
   const token = await tokenFor(request, ACCOUNTS.customer);
   const headers = { Authorization: `Bearer ${token}` };
 
-  const restaurant = await restaurantId(request);
-  const item = await menuItem(request, options.itemName);
+  const slug = options.slug ?? ALWAYS_OPEN_SLUG;
+  const restaurant = await restaurantId(request, slug);
+  const item = await menuItem(request, options.itemName, slug);
 
   await request.delete(`${API}/api/restaurants/${restaurant}/cart`, { headers });
 
@@ -158,7 +186,7 @@ export async function checkout(
  */
 export async function placeOrder(
   request: APIRequestContext,
-  options: { itemName?: string; quantity?: number } = {},
+  options: { itemName?: string; quantity?: number; slug?: string } = {},
 ): Promise<PlacedOrder> {
   const basket = await stockBasket(request, options);
   const result = await checkout(request, basket);
@@ -186,13 +214,16 @@ export async function attemptOrder(
 const FULFILLMENT_PICKUP = 2;
 const PAYMENT_CASH = 1;
 
-async function restaurantId(request: APIRequestContext): Promise<string> {
+export async function restaurantId(
+  request: APIRequestContext,
+  slug: string = ALWAYS_OPEN_SLUG,
+): Promise<string> {
   const list = (await (await request.get(`${API}/api/restaurants`)).json()) as {
     items: { id: string; slug: string }[];
   };
 
-  const found = list.items.find((r) => r.slug === ALWAYS_OPEN_SLUG);
-  expect(found, `${ALWAYS_OPEN_SLUG} should be in the seed`).toBeTruthy();
+  const found = list.items.find((r) => r.slug === slug);
+  expect(found, `${slug} should be listed and in the seed`).toBeTruthy();
 
   return found!.id;
 }
@@ -204,16 +235,15 @@ async function restaurantId(request: APIRequestContext): Promise<string> {
 async function menuItem(
   request: APIRequestContext,
   name?: string,
+  slug: string = ALWAYS_OPEN_SLUG,
 ): Promise<{ id: string; name: string; choices: { optionId: string; quantity: number }[] }> {
-  const menu = (await (
-    await request.get(`${API}/api/restaurants/${ALWAYS_OPEN_SLUG}/menu`)
-  ).json()) as {
+  const menu = (await (await request.get(`${API}/api/restaurants/${slug}/menu`)).json()) as {
     categories: { items: { id: string; name: string; basePriceUsd: number }[] }[];
   };
 
   const items = menu.categories.flatMap((c) => c.items);
   const chosen = name ? items.find((i) => i.name === name) : items[0];
-  expect(chosen, `${name ?? 'any item'} should be on the ${ALWAYS_OPEN_SLUG} menu`).toBeTruthy();
+  expect(chosen, `${name ?? 'any item'} should be on the ${slug} menu`).toBeTruthy();
 
   const detail = (await (await request.get(`${API}/api/menu-items/${chosen!.id}`)).json()) as {
     optionGroups: { minSelect: number; options: { id: string }[] }[];
