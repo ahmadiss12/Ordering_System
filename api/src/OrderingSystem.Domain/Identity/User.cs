@@ -24,6 +24,20 @@ public class User
     /// <summary>Deactivation instead of deletion — orders must keep resolving their customer.</summary>
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// True for an account created by a staff invitation, until its owner follows the emailed link
+    /// and chooses a password.
+    ///
+    /// <para>
+    /// It exists so a restaurant owner can tell "invited, has not signed in yet" from "working
+    /// here", which nothing else in the model answers: an invited account is created with a hash
+    /// of a discarded secret, and an unusable password looks exactly like a normal one from
+    /// outside. Somebody invited who already had an account here is never marked — they have a
+    /// password already.
+    /// </para>
+    /// </summary>
+    public bool MustSetPassword { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public ICollection<UserRole> Roles { get; } = [];

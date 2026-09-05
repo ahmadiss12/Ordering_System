@@ -211,6 +211,11 @@ public sealed class AuthService(
         token.UsedAt = clock.UtcNow;
         token.User.PasswordHash = passwordHasher.Hash(request.NewPassword);
 
+        // Choosing a password is what accepting a staff invitation consists of, so this is where
+        // the invitation stops being outstanding. Harmless for an ordinary reset: the flag is
+        // already false for everyone who was not invited.
+        token.User.MustSetPassword = false;
+
         // Changing a password ends every existing session. If the reset happened because the
         // account was compromised, leaving the attacker's refresh tokens alive defeats the point.
         var live = await db.RefreshTokens
@@ -237,9 +242,15 @@ public sealed class AuthService(
         // IgnoreQueryFilters is required, not a shortcut: RestaurantStaff is tenant-filtered, and
         // this is the query that decides what the tenant IS. Reading it through the filter would
         // ask a question that can only be answered after it has been answered.
+        // Ordered, because FirstOrDefault on an unordered query is whatever SQL Server hands back
+        // first. Invitations refuse to create a second membership for exactly this reason, but
+        // the composite key still permits one, and a token whose tenant changed between logins
+        // would be a miserable thing to diagnose. Oldest wins - the job they held first.
         var restaurantId = await db.RestaurantStaff
             .IgnoreQueryFilters()
             .Where(s => s.UserId == user.Id)
+            .OrderBy(s => s.CreatedAt)
+            .ThenBy(s => s.RestaurantId)
             .Select(s => (Guid?)s.RestaurantId)
             .FirstOrDefaultAsync(ct);
 
