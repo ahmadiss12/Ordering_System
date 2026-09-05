@@ -1,0 +1,121 @@
+<header class="intro">
+  <h1>Platform</h1>
+  <p>
+    Every restaurant on the platform, listed or not &mdash; what each is charged, and whether
+    customers can find them. Nothing else on this page is yours to change; a restaurant's name,
+    hours and menu are its own.
+  </p>
+</header>
+
+@if (store.loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (store.error(); as message) {
+  <mat-card appearance="outlined" class="error">
+    <mat-card-content>
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ message }}</span>
+    </mat-card-content>
+  </mat-card>
+}
+
+<!-- Same rule as the staff list and the opening hours: an empty list is a confident answer, and
+     a failed load that drew one would say the platform has no restaurants on it. -->
+@if (store.loaded()) {
+  @if (store.hiddenCount(); as hidden) {
+    <p class="hidden-note">
+      <mat-icon>visibility_off</mat-icon>
+      {{ hidden }} restaurant{{ hidden === 1 ? ' is' : 's are' }} hidden from customers right now.
+    </p>
+  }
+
+  <div class="restaurants">
+    @for (row of store.rows(); track row.id) {
+      <mat-card appearance="outlined" class="restaurant" [class.hidden]="!row.isActive">
+        <mat-card-content>
+          <div class="who">
+            <div class="name">
+              <h2>{{ row.name }}</h2>
+              @if (!row.isActive) {
+                <span class="badge hidden">Hidden</span>
+              } @else if (!row.isAcceptingOrders) {
+                <!-- Listed, but its own kitchen is paused. Worth separating: switching the
+                     listing would not help, and the difference is not otherwise visible. -->
+                <span class="badge paused" matTooltip="The restaurant paused its own orders">
+                  Paused by the kitchen
+                </span>
+              }
+            </div>
+            <span class="muted">/{{ row.slug }} &middot; {{ row.phone }}</span>
+          </div>
+
+          <div class="waiting">
+            @if (row.liveOrderCount > 0) {
+              <span class="count">{{ row.liveOrderCount }}</span>
+              <span class="muted">
+                {{ row.liveOrderCount === 1 ? 'order' : 'orders' }} still cooking
+              </span>
+            } @else {
+              <span class="muted">Nothing cooking</span>
+            }
+          </div>
+
+          <div class="rate">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Commission</mat-label>
+              <input
+                matInput
+                type="number"
+                min="0"
+                [max]="maxCommission"
+                step="0.25"
+                [value]="rate(row)"
+                [disabled]="store.busy() === row.id"
+                (input)="onRate(row, $any($event.target).value)"
+              />
+              <span matTextSuffix>%</span>
+            </mat-form-field>
+
+            @if (isRateDirty(row)) {
+              @if (isRateValid(row)) {
+                <button matButton (click)="discardRate(row)">Discard</button>
+                <button
+                  matButton="filled"
+                  [disabled]="store.busy() === row.id"
+                  (click)="saveRate(row)"
+                >
+                  Save
+                </button>
+              } @else {
+                <span class="wrong">Between 0% and {{ maxCommission }}%, to two decimals.</span>
+                <button matButton (click)="discardRate(row)">Discard</button>
+              }
+            }
+          </div>
+
+          <div class="listing">
+            <button
+              matButton="outlined"
+              [disabled]="store.busy() === row.id"
+              (click)="toggleListing(row)"
+            >
+              <mat-icon>{{ row.isActive ? 'visibility_off' : 'visibility' }}</mat-icon>
+              {{ row.isActive ? 'Hide from customers' : 'List again' }}
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+} @else if (!store.loading()) {
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <p class="failed">
+        The platform list could not be loaded, so it is not shown: an empty list here would read as
+        &ldquo;no restaurants&rdquo;, which is not true.
+      </p>
+      <button matButton (click)="store.load()">Try again</button>
+    </mat-card-content>
+  </mat-card>
+}

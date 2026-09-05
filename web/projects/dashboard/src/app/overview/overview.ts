@@ -60,7 +60,7 @@ export class Overview {
       const page = await firstValueFrom(this.restaurantsClient.list());
       this.all.set(page.items ?? []);
     } catch {
-      this.error.set('Could not reach the API. Is it running on port 5080?');
+      this.error.set('Could not reach the API. Is it running on port 5248?');
     } finally {
       this.loading.set(false);
     }

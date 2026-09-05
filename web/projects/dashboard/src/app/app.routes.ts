@@ -20,6 +20,7 @@ export const routes: Routes = [
       navChild(NAV.history, () => import('./orders/history').then((m) => m.History)),
       navChild(NAV.menu, () => import('./menu/menu').then((m) => m.Menu)),
       navChild(NAV.settings, () => import('./settings/settings').then((m) => m.Settings)),
+      navChild(NAV.platform, () => import('./platform/platform').then((m) => m.Platform)),
       {
         // Where roleGuard sends a signed-in user who lacks the role. Inside the shell, so they
         // keep the navigation and can go somewhere they are allowed; a bare page would strand

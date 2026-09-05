@@ -25,3 +25,12 @@ export const RESTAURANT_STAFF: readonly Role[] = [Roles.RestaurantStaff, Roles.R
 
 /** Owner-only areas: staff accounts, delivery zones, fees, prep time. */
 export const RESTAURANT_OWNER: readonly Role[] = [Roles.RestaurantOwner];
+
+/**
+ * The platform's own areas: commission and the listing switch.
+ *
+ * Deliberately not including RestaurantOwner. An owner is the top of their restaurant and the
+ * bottom of this list — what they are charged, and whether they are listed at all, are not theirs
+ * to set.
+ */
+export const PLATFORM_ADMIN: readonly Role[] = [Roles.PlatformAdmin];

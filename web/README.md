@@ -27,8 +27,9 @@ npm start                    # dashboard on http://localhost:4200
 npx ng serve storefront      # storefront on http://localhost:4201
 ```
 
-Both proxy `/api`, `/media` and `/hubs` to the backend on `http://localhost:5080`
-([`proxy.conf.json`](proxy.conf.json)), so run the API first — see the root
+Both proxy `/api`, `/media` and `/hubs` to the backend on `http://localhost:5248` — the port
+`launchSettings.json` gives it, so a plain `dotnet run` lands there
+([`proxy.conf.json`](proxy.conf.json)) — so run the API first — see the root
 [README](../README.md). The `/hubs` entry carries `ws: true`: without it the dev server proxies
 SignalR's negotiate but not the WebSocket that follows, and the connection quietly falls back to
 long polling in development only — which works, and hides a problem until production.
@@ -57,7 +58,7 @@ applied and seeded":
 ```bash
 # once, from the repository root
 dotnet run --project api/src/OrderingSystem.Api -- --seed
-dotnet run --project api/src/OrderingSystem.Api --urls http://localhost:5080
+dotnet run --project api/src/OrderingSystem.Api --urls http://localhost:5248
 
 # then, from web/
 npm run e2e          # headless

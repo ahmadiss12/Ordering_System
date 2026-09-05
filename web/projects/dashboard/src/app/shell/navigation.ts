@@ -1,6 +1,6 @@
 import { Route } from '@angular/router';
 import { MaterialIcon } from 'material-icons';
-import { RESTAURANT_OWNER, RESTAURANT_STAFF, Role, roleGuard } from 'auth';
+import { PLATFORM_ADMIN, RESTAURANT_OWNER, RESTAURANT_STAFF, Role, roleGuard } from 'auth';
 
 /**
  * One section of the dashboard: a route, and the sidenav entry that leads to it.
@@ -62,6 +62,12 @@ export const NAV = {
     label: 'Settings',
     icon: 'settings',
     roles: RESTAURANT_OWNER,
+  },
+  platform: {
+    path: 'platform',
+    label: 'Platform',
+    icon: 'admin_panel_settings',
+    roles: PLATFORM_ADMIN,
   },
 } as const satisfies Record<string, NavItem>;
 

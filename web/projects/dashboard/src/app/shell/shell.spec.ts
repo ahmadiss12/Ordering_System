@@ -53,6 +53,9 @@ describe('Shell', () => {
   it('offers an owner every section', () => {
     const fixture = renderAs(Roles.RestaurantOwner);
 
+    // No Platform. An owner is the top of their own restaurant and the bottom of that list —
+    // what they are charged and whether they are listed are not theirs to set, and a section
+    // they could open and be bounced out of would read as broken rather than as forbidden.
     expect(sectionLabels(fixture)).toEqual(['Overview', 'Queue', 'History', 'Menu', 'Settings']);
   });
 
@@ -64,11 +67,12 @@ describe('Shell', () => {
     expect(sectionLabels(fixture)).toEqual(['Overview', 'Queue', 'History', 'Menu']);
   });
 
-  it('offers a platform admin only the sections that are not restaurant-scoped', () => {
+  it('offers a platform admin the platform section and no restaurant one', () => {
     const fixture = renderAs(Roles.PlatformAdmin);
 
-    // A platform admin holds neither restaurant role, so the restaurant sections are not theirs.
-    expect(sectionLabels(fixture)).toEqual(['Overview']);
+    // A platform admin holds neither restaurant role, so the restaurant sections are not theirs
+    // — but the commission and listing controls are, and nobody else's.
+    expect(sectionLabels(fixture)).toEqual(['Overview', 'Platform']);
   });
 
   it('links each section to its own route', () => {

@@ -1,0 +1,139 @@
+.intro {
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0 0 0.35rem;
+    font: var(--mat-sys-headline-small);
+  }
+
+  p {
+    max-width: 60ch;
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.error mat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--mat-sys-error);
+}
+
+.failed {
+  margin: 0 0 1rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-error);
+}
+
+.hidden-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.restaurants {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.restaurant {
+  mat-card-content {
+    display: grid;
+
+    // The last column is a fixed width rather than auto. Each card is its own grid, so an auto
+    // track sizes to that card's own button — and "List again" is narrower than "Hide from
+    // customers", which pulled the commission field of a hidden restaurant out of line with
+    // every other one. A column of money that does not line up reads as unfinished.
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr) auto 13rem;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  // Hidden is a state, not an error: the restaurant is fine, the platform has switched it off.
+  // Dimmed rather than coloured, so it reads as "not showing" and not as "something is wrong".
+  &.hidden .who {
+    opacity: 0.65;
+  }
+}
+
+.who {
+  min-width: 0;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+  }
+}
+
+.muted {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.badge {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: var(--mat-sys-label-medium);
+
+  &.hidden {
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container-highest);
+  }
+
+  &.paused {
+    color: var(--mat-sys-on-tertiary-container);
+    background: var(--mat-sys-tertiary-container);
+  }
+}
+
+.waiting {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.count {
+  font: var(--mat-sys-title-medium);
+}
+
+.rate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  mat-form-field {
+    width: 9rem;
+  }
+}
+
+.wrong {
+  max-width: 16ch;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-error);
+}
+
+@media (max-width: 1100px) {
+  .restaurant mat-card-content {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 1rem;
+  }
+
+  .rate,
+  .listing {
+    grid-column: 1 / -1;
+  }
+}
