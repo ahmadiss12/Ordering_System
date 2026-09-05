@@ -37,3 +37,21 @@ public sealed record InviteStaffRequest(
     StaffRoleType StaffRole);
 
 public sealed record SetStaffRoleRequest(StaffRoleType StaffRole);
+
+/// <summary>
+/// The result of adding somebody, which is two facts rather than one: they are on the staff list,
+/// and — separately — whether the invitation reached them.
+/// </summary>
+/// <param name="InvitationEmailed">
+/// False when there was nothing to send, because they already had an account here, and false when
+/// there was and it failed. <see cref="StaffMemberResponse.MustSetPassword"/> tells the two apart:
+/// somebody waiting for a password who was not emailed is somebody who needs the link again.
+///
+/// <para>
+/// It is a field rather than an exception because the row is committed by the time the mail is
+/// attempted. Failing the request would tell an owner nothing happened while somebody had in fact
+/// just been granted their entire order book, and the staff list would contradict the error on
+/// the next refresh.
+/// </para>
+/// </param>
+public sealed record InvitedStaffResponse(StaffMemberResponse Member, bool InvitationEmailed);

@@ -3116,7 +3116,7 @@ export interface IRestaurantStaffClient {
     /**
      * @return Created
      */
-    invite(body: InviteStaffRequest): Observable<StaffMemberResponse>;
+    invite(body: InviteStaffRequest): Observable<InvitedStaffResponse>;
     /**
      * @return OK
      */
@@ -3193,7 +3193,7 @@ export class RestaurantStaffClient implements IRestaurantStaffClient {
     /**
      * @return Created
      */
-    invite(body: InviteStaffRequest): Observable<StaffMemberResponse> {
+    invite(body: InviteStaffRequest): Observable<InvitedStaffResponse> {
         let url_ = this.baseUrl + "/api/restaurant/staff";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3216,14 +3216,14 @@ export class RestaurantStaffClient implements IRestaurantStaffClient {
                 try {
                     return this.processInvite(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<StaffMemberResponse>;
+                    return _observableThrow(e) as any as Observable<InvitedStaffResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<StaffMemberResponse>;
+                return _observableThrow(response_) as any as Observable<InvitedStaffResponse>;
         }));
     }
 
-    protected processInvite(response: HttpResponseBase): Observable<StaffMemberResponse> {
+    protected processInvite(response: HttpResponseBase): Observable<InvitedStaffResponse> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -3233,7 +3233,7 @@ export class RestaurantStaffClient implements IRestaurantStaffClient {
         if (status === 201) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             let result201: any = null;
-            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as StaffMemberResponse;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InvitedStaffResponse;
             return _observableOf(result201);
             }));
         } else if (status === 400) {
@@ -3739,6 +3739,13 @@ export interface ForgotPasswordRequest {
 export enum FulfillmentType {
     Delivery = 1,
     Pickup = 2,
+}
+
+export interface InvitedStaffResponse {
+    member: StaffMemberResponse;
+    invitationEmailed: boolean;
+
+    [key: string]: any;
 }
 
 export interface InviteStaffRequest {

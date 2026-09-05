@@ -129,15 +129,36 @@ internal sealed class FileLoggerProvider(string path) : ILoggerProvider
 public sealed class CapturedEmails : IEmailSender
 {
     private readonly List<(string To, string Subject, string Body)> _sent = [];
+    private bool _failNext;
 
     public IReadOnlyList<(string To, string Subject, string Body)> Sent
     {
         get { lock (_sent) { return _sent.ToArray(); } }
     }
 
+    /// <summary>
+    /// Makes the next send throw, once. A mail server that is briefly unreachable is an ordinary
+    /// event, and what a caller does about it is worth being able to test — the real sender
+    /// throws a MailKit exception straight out of ConnectAsync when nothing is listening.
+    /// </summary>
+    public void FailNextSend()
+    {
+        lock (_sent) { _failNext = true; }
+    }
+
     public Task SendAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default)
     {
-        lock (_sent) { _sent.Add((toEmail, subject, body)); }
+        lock (_sent)
+        {
+            if (_failNext)
+            {
+                _failNext = false;
+                throw new InvalidOperationException("The mail server is not answering.");
+            }
+
+            _sent.Add((toEmail, subject, body));
+        }
+
         return Task.CompletedTask;
     }
 }

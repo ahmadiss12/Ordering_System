@@ -1,0 +1,164 @@
+<mat-card appearance="outlined">
+  <mat-card-content>
+    <div class="head">
+      <div>
+        <h2>Who works here</h2>
+        <p class="muted">
+          Everyone on this list can see every order you take, with the customer's name, phone number
+          and address. Add people you would hand the till to.
+        </p>
+      </div>
+    </div>
+
+    @if (store.loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+
+    @if (store.error(); as message) {
+      <p class="failed">{{ message }}</p>
+    }
+
+    <!-- Same rule as the opening hours: an empty list is a confident answer, and a failed load
+         that drew one would tell an owner they work here alone. -->
+    @if (store.loaded()) {
+      <ul class="people">
+        @for (member of store.members(); track member.userId) {
+          <li class="person" [class.pending]="member.mustSetPassword">
+            <div class="who">
+              <span class="name">
+                {{ member.fullName }}
+                @if (member.isYou) {
+                  <span class="you">you</span>
+                }
+              </span>
+              <span class="email">{{ member.email }}</span>
+
+              @if (member.mustSetPassword) {
+                <span class="waiting">
+                  <mat-icon>schedule_send</mat-icon>
+                  Invited &mdash; they have not chosen a password yet
+                </span>
+              }
+            </div>
+
+            <div class="role">
+              <span class="badge" [class.owner]="member.staffRole === Role.Owner">
+                {{ roleLabel(member.staffRole) }}
+              </span>
+              <span class="muted can">{{ roleDescription(member.staffRole) }}</span>
+            </div>
+
+            <div class="actions">
+              @if (store.isLastOwner(member)) {
+                <!-- Not drawn rather than drawn-and-refused. With no owner there is nobody who
+                     can set a fee, edit the hours, or invite somebody who could put an owner
+                     back — it would take our support to undo. -->
+                <span class="protected" matTooltip="Make somebody else an owner first">
+                  <mat-icon>lock</mat-icon>
+                  Last owner
+                </span>
+              } @else {
+                <button
+                  matIconButton
+                  [matMenuTriggerFor]="rowMenu"
+                  [disabled]="store.busy() === member.userId"
+                  [attr.aria-label]="'Manage ' + member.fullName"
+                >
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+
+                <mat-menu #rowMenu="matMenu">
+                  @if (member.staffRole === Role.Staff) {
+                    <button mat-menu-item (click)="setRole(member, Role.Owner)">
+                      <mat-icon>arrow_upward</mat-icon>
+                      Make an owner
+                    </button>
+                  } @else {
+                    <button mat-menu-item (click)="setRole(member, Role.Staff)">
+                      <mat-icon>arrow_downward</mat-icon>
+                      {{ member.isYou ? 'Step back to staff' : 'Change to staff' }}
+                    </button>
+                  }
+
+                  <button mat-menu-item class="destructive" (click)="remove(member)">
+                    <mat-icon>person_remove</mat-icon>
+                    {{ member.isYou ? 'Remove myself' : 'Remove from restaurant' }}
+                  </button>
+                </mat-menu>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+
+      <form class="invite" [formGroup]="form" (ngSubmit)="invite()">
+        <h3>Add somebody</h3>
+
+        @if (store.invited(); as invited) {
+          @if (invited.invitationEmailed) {
+            <p class="sent">
+              <mat-icon>check</mat-icon>
+              Invitation emailed to {{ invited.member.email }}. They have a week to choose a
+              password.
+            </p>
+          } @else if (invited.member.mustSetPassword) {
+            <!-- Added, but they cannot sign in and no link went out. Saying "invitation sent"
+                 here would leave an owner waiting for something that is not coming. -->
+            <p class="sent half">
+              <mat-icon>report_problem</mat-icon>
+              {{ invited.member.fullName }} is on the list, but the invitation could not be emailed.
+              Remove them and add them again to send a fresh link.
+            </p>
+          } @else {
+            <p class="sent">
+              <mat-icon>check</mat-icon>
+              {{ invited.member.fullName }} already had an account here, so there was no link to
+              send &mdash; they sign in with the password they already use.
+            </p>
+          }
+        }
+
+        <div class="fields">
+          <mat-form-field appearance="outline">
+            <mat-label>Email</mat-label>
+            <input matInput type="email" formControlName="email" autocomplete="off" />
+            @if (form.controls.email.hasError('email') && form.controls.email.touched) {
+              <mat-error>That does not look like an email address.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Name</mat-label>
+            <input matInput formControlName="fullName" autocomplete="off" />
+            <mat-hint>Used only if they are new here.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Phone (optional)</mat-label>
+            <input matInput formControlName="phone" autocomplete="off" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>They can</mat-label>
+            <mat-select formControlName="staffRole">
+              <mat-option [value]="Role.Staff">{{ roleDescription(Role.Staff) }}</mat-option>
+              <mat-option [value]="Role.Owner">{{ roleDescription(Role.Owner) }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="submit">
+          <button matButton="filled" type="submit" [disabled]="store.inviting()">
+            Send invitation
+          </button>
+        </div>
+      </form>
+    } @else if (!store.loading()) {
+      <p class="failed">
+        Your staff list could not be loaded, so it is not shown: an empty list here would read as
+        &ldquo;nobody else works here&rdquo;, which may not be true.
+      </p>
+      <button matButton (click)="store.load()">Try again</button>
+    }
+  </mat-card-content>
+</mat-card>

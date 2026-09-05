@@ -11,6 +11,8 @@ import { SessionStore, Roles } from 'auth';
 import { Hours } from './hours';
 import { HoursStore } from './hours-store';
 import { SettingsStore } from './settings-store';
+import { Staff } from './staff';
+import { StaffStore } from './staff-store';
 import { Zones } from './zones';
 import { ZonesStore } from './zones-store';
 
@@ -35,10 +37,11 @@ const MAX_MIN_ORDER_USD = 500;
  */
 @Component({
   selector: 'app-settings',
-  providers: [SettingsStore, HoursStore, ZonesStore],
+  providers: [SettingsStore, HoursStore, ZonesStore, StaffStore],
   imports: [
     Hours,
     Zones,
+    Staff,
     ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,

@@ -35,17 +35,22 @@ public sealed class RestaurantStaffController(RestaurantStaffService staff) : Co
     /// person keeps the order history they placed as a customer. An address with no account gets
     /// one, and an emailed link to choose a password.
     /// </para>
+    /// <para>
+    /// 201 even when the email could not be sent. The row is committed by then, so a failure
+    /// status would tell an owner nothing happened while somebody had just been granted the
+    /// restaurant's entire order book. The response says whether the link went out instead.
+    /// </para>
     /// </summary>
     [HttpPost]
-    [ProducesResponseType<StaffMemberResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<InvitedStaffResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<StaffMemberResponse>> Invite(
+    public async Task<ActionResult<InvitedStaffResponse>> Invite(
         InviteStaffRequest request, CancellationToken ct)
     {
-        var member = await staff.InviteAsync(request, ct);
-        return CreatedAtAction(nameof(List), new { }, member);
+        var invited = await staff.InviteAsync(request, ct);
+        return CreatedAtAction(nameof(List), new { }, invited);
     }
 
     /// <summary>

@@ -81,10 +81,11 @@ public sealed class RestaurantStaffTests(ApiFactory factory) : IClassFixture<Api
 
         try
         {
-            var invited = await InviteAsync(owner, email, StaffRoleType.Staff);
+            var invited = await InvitationAsync(owner, email, StaffRoleType.Staff);
 
-            invited.Email.ShouldBe(email);
-            invited.MustSetPassword.ShouldBeTrue("they have not chosen a password yet");
+            invited.Member.Email.ShouldBe(email);
+            invited.Member.MustSetPassword.ShouldBeTrue("they have not chosen a password yet");
+            invited.InvitationEmailed.ShouldBeTrue();
 
             var sent = factory.Emails.Sent.Last(m => m.To == email);
             sent.Body.ShouldContain("reset-password?token=");
@@ -187,9 +188,13 @@ public sealed class RestaurantStaffTests(ApiFactory factory) : IClassFixture<Api
 
         try
         {
-            var invited = await InviteAsync(owner, email, StaffRoleType.Staff);
+            var invited = await InvitationAsync(owner, email, StaffRoleType.Staff);
 
-            invited.MustSetPassword.ShouldBeFalse("they already have a password");
+            invited.Member.MustSetPassword.ShouldBeFalse("they already have a password");
+
+            // Nothing was sent that anybody is waiting for, and the screen has to be able to say
+            // so rather than promise a link that is never coming.
+            invited.InvitationEmailed.ShouldBeFalse();
             factory.Emails.Sent.Last(m => m.To == email).Body
                 .ShouldNotContain("reset-password?token=", Case.Sensitive);
 
@@ -202,6 +207,34 @@ public sealed class RestaurantStaffTests(ApiFactory factory) : IClassFixture<Api
 
             mine!.TotalCount.ShouldBe(before);
             (await UserIdAsync(email)).ShouldBe(customer);
+        }
+        finally
+        {
+            await ForgetAsync(email);
+        }
+    }
+
+    [Fact]
+    public async Task A_mail_server_that_is_down_does_not_undo_the_invitation()
+    {
+        var owner = await SignInAsync(Owner);
+        var email = NewEmail();
+
+        try
+        {
+            factory.Emails.FailNextSend();
+
+            // Found by running it: with no mail server listening, this threw out of the sender
+            // and the owner got "an unexpected error occurred" - for an operation that had
+            // already committed and handed somebody the restaurant's entire order book.
+            var invited = await InvitationAsync(owner, email, StaffRoleType.Staff);
+
+            invited.InvitationEmailed.ShouldBeFalse("nothing was sent, and saying so is the point");
+            invited.Member.MustSetPassword.ShouldBeTrue("so the screen knows they still need a link");
+
+            // On the list, which is what makes reporting failure the wrong answer: the next
+            // refresh would have contradicted the error.
+            (await ListAsync(owner)).ShouldContain(m => m.Email == email);
         }
         finally
         {
@@ -609,13 +642,17 @@ public sealed class RestaurantStaffTests(ApiFactory factory) : IClassFixture<Api
         (await client.GetFromJsonAsync<List<StaffMemberResponse>>("/api/restaurant/staff", Ct))!;
 
     private static async Task<StaffMemberResponse> InviteAsync(
+        HttpClient owner, string email, StaffRoleType role) =>
+        (await InvitationAsync(owner, email, role)).Member;
+
+    private static async Task<InvitedStaffResponse> InvitationAsync(
         HttpClient owner, string email, StaffRoleType role)
     {
         var response = await owner.PostAsJsonAsync("/api/restaurant/staff",
             new InviteStaffRequest(email, "Newly Hired", "+9613111222", role), Ct);
 
         await EnsureSucceededAsync(response);
-        return (await response.Content.ReadFromJsonAsync<StaffMemberResponse>(Ct))!;
+        return (await response.Content.ReadFromJsonAsync<InvitedStaffResponse>(Ct))!;
     }
 
     private static async Task SetRoleAsync(HttpClient owner, Guid userId, StaffRoleType role) =>

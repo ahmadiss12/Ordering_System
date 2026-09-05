@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OrderingSystem.Application.Abstractions;
 using OrderingSystem.Application.Features.Auth;
@@ -26,7 +27,7 @@ namespace OrderingSystem.Application.Features.Restaurants;
 /// write below goes through <see cref="ApplyRoleAsync"/> so the pairing exists in one place.
 /// </para>
 /// </summary>
-public sealed class RestaurantStaffService(
+public sealed partial class RestaurantStaffService(
     IAppDbContext db,
     ITenantGuard guard,
     ITenantContext tenant,
@@ -34,6 +35,7 @@ public sealed class RestaurantStaffService(
     IPasswordHasher passwordHasher,
     IEmailSender emailSender,
     IClock clock,
+    ILogger<RestaurantStaffService> logger,
     IOptions<AuthOptions> options)
 {
     private readonly AuthOptions _options = options.Value;
@@ -71,7 +73,7 @@ public sealed class RestaurantStaffService(
     /// claimed to have sent them a link would be lying.
     /// </para>
     /// </summary>
-    public async Task<StaffMemberResponse> InviteAsync(
+    public async Task<InvitedStaffResponse> InviteAsync(
         InviteStaffRequest request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -110,9 +112,9 @@ public sealed class RestaurantStaffService(
         await ApplyRoleAsync(user.Id, request.StaffRole, ct);
         await db.SaveChangesAsync(ct);
 
-        await SendInvitationAsync(user, restaurantId, ct);
+        var emailed = await SendInvitationAsync(user, restaurantId, ct);
 
-        return await SingleAsync(user.Id, ct);
+        return new InvitedStaffResponse(await SingleAsync(user.Id, ct), emailed);
     }
 
     /// <summary>
@@ -286,7 +288,17 @@ public sealed class RestaurantStaffService(
             CreatedAt = clock.UtcNow,
         };
 
-    private async Task SendInvitationAsync(User user, Guid restaurantId, CancellationToken ct)
+    /// <summary>
+    /// Tells them, and reports whether that worked.
+    ///
+    /// <para>
+    /// Nothing in here is allowed to throw. By the time it runs the staff row is committed, so an
+    /// exception would surface to the owner as "something went wrong" about an operation that in
+    /// fact succeeded — and the person would be on the list the next time they looked. A mail
+    /// server that is briefly down is an ordinary event, not a reason to appear to fail.
+    /// </para>
+    /// </summary>
+    private async Task<bool> SendInvitationAsync(User user, Guid restaurantId, CancellationToken ct)
     {
         var restaurantName = await db.Restaurants.AsNoTracking()
             .Where(r => r.Id == restaurantId)
@@ -298,7 +310,7 @@ public sealed class RestaurantStaffService(
             // They already had an account, so there is no link to send and nothing to set up.
             // Their next sign-in picks up the restaurant, because the token is built from the
             // staff table each time one is issued.
-            await emailSender.SendAsync(
+            await TrySendAsync(
                 user.Email,
                 $"You have been added to {restaurantName}",
                 $"""
@@ -308,9 +320,11 @@ public sealed class RestaurantStaffService(
                  the password you already use and the restaurant's screens will be there.
 
                  If you were not expecting this, reply to this message and tell us.
-                 """,
-                ct);
-            return;
+                 """);
+
+            // Nothing was sent that anybody is waiting for. They sign in with the password they
+            // already have, so a notice that did not arrive costs them nothing.
+            return false;
         }
 
         var token = TokenHashing.NewToken();
@@ -330,7 +344,7 @@ public sealed class RestaurantStaffService(
         var link = $"{_options.AppBaseUrl.TrimEnd('/')}/reset-password" +
             $"?token={Uri.EscapeDataString(token)}&invited=1";
 
-        await emailSender.SendAsync(
+        return await TrySendAsync(
             user.Email,
             $"{restaurantName} has invited you to Ordering System",
             $"""
@@ -343,9 +357,36 @@ public sealed class RestaurantStaffService(
 
              If you have no idea what this is, ignore this message - no account of yours has been
              changed.
-             """,
-            ct);
+             """);
     }
+
+    private async Task<bool> TrySendAsync(string to, string subject, string body)
+    {
+        try
+        {
+            // Deliberately not passing the request's cancellation token. The caller has already
+            // been committed to; abandoning the mail because they closed the tab would leave
+            // somebody on a staff list with no way to sign in and nothing saying so.
+            await emailSender.SendAsync(to, subject, body, CancellationToken.None);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            // Broad on purpose. Every mail library has its own exception type and its own set of
+            // transient network failures underneath, and none of them is worth failing a
+            // completed operation over. The token is in the database either way, so an owner who
+            // removes and re-invites gets a fresh link.
+            LogInvitationNotSent(logger, exception, to);
+            return false;
+        }
+    }
+
+    [LoggerMessage(
+        EventId = 3001,
+        Level = LogLevel.Error,
+        Message = "Could not email a staff invitation to {Email}. They are on the staff list; "
+            + "removing and re-inviting them issues a fresh link.")]
+    private static partial void LogInvitationNotSent(ILogger logger, Exception exception, string email);
 
     // ------------------------------------------------------------------ helpers
 
